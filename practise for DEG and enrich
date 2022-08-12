@@ -2,7 +2,7 @@
 
 rm( list = ls() )
 getwd
-setwd("C:/ ")
+setwd("C:\\Users\\wudi\\Desktop\\Di Wu project\\msap+sap vs map")
 library(affy)
 dir_cels='C:\\Users\\wudi\\Desktop\\Di Wu project\\msap+sap vs map\\Human AP Affymetrix Arrays\\cel_files'
 eset = ReadAffy(celfile.path=dir_cels)
