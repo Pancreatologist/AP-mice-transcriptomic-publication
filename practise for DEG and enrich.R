@@ -1,11 +1,16 @@
+# First off, it's a good idea to have all your library() calls in one place at the start.
+# This makes any errors from not having a package installed appear quickly, when you run the script.
+
 #  set work dictionary ----
 
-rm( list = ls() )
-getwd
-setwd("C:\\Users\\wudi\\Desktop\\Di Wu project\\msap+sap vs map")
-library(affy)
+rm( list = ls() ) # I would recommend NOT saving the R environment when closing the session. This will make this line unnecessary.
+getwd # Instead of using setwd(), I would recommend using the approach given here: https://www.tidyverse.org/blog/2017/12/workflow-vs-script/. I use the 'here' package a lot.
+setwd("C:\\Users\\wudi\\Desktop\\Di Wu project\\msap+sap vs map") 
+library(affy) # If this works for your microarray type then carry on, but if you have problems the 'oligo' package is the more modern version of 'affy', and may be more compatible with newer arrays.
 dir_cels='C:\\Users\\wudi\\Desktop\\Di Wu project\\msap+sap vs map\\Human AP Affymetrix Arrays\\cel_files'
 eset = ReadAffy(celfile.path=dir_cels)
+
+# Are lines 14-18 necessary? Or just experimenting? They seem to lead to a redundant result.
 raw.names<-sampleNames(eset)  
 raw.names <- a$x
 write.csv(sampleNames(eset), file = 'a.txt')
@@ -14,6 +19,7 @@ sampleNames( eset ) = raw.names # change sample name
 
 ### RMA and take the expression
 eset_rma = rma(eset) # RMA
+# Make sure you're aware of what microarray type your data come from, and what level rma() is summarising at. For example, some Affymetrix arrays have an option to summarise at an 'exon' or a 'probeset' level with this step.
 exprset1 = exprs(eset_rma) # take the expression data from CEL files
 
 ### look over the expr
@@ -22,8 +28,8 @@ table( is.na(exprset1) ) # chech if there is NA
 table( exprset1 < 0 ) # check if there is data less than 0
 hist(unlist( exprset1 ))
 
-1.1 get the sampleinfo----
-sampleinfo = pData(eset)
+# 1.1 get the sampleinfo----
+sampleinfo = pData(eset) # Where did this pData come from? This is the first time it appears, should this line come after another step?
 # get the clear group information
 library(tidyverse)
 term_x = sampleinfo$sample 
@@ -66,14 +72,16 @@ p1 = ggplot(expr_l,aes(x= Sample, y= Expression, fill= Group, color = Group))+
 
 # normalize based on the boxplot
 library(limma)
+# normaliseBetweenArrays should not be necessary, quantile normalisation is performed as part of rma().
+# Could you send me an image of the boxplot from line 48 please? This should show whether rma's quantile normalisation worked.
 exprset1 = normalizeBetweenArrays( exprset1, method = "quantile" ) # normalizeBetweenArrays 可用于芯片数据标准化
 
 ### 1.5 PCA
 library(devtools)
-install_github('sinhrks/ggfortify')
+install_github('sinhrks/ggfortify') # install commands should be left out of scripts, and only used in console. Stick to just 'library' calls, and the end user can install the package themselves if necessary.
 library(ggfortify); library(ggplot2)
-library(ggplot2)
-library(ggsci)
+library(ggplot2) # This shou;d already be loaded from library(tidyverse) earlier
+library(ggsci) # You have already loaded this package
 pca1 = prcomp( as.data.frame( t( exprset1) ) ) 
 
 xxx = pca1[["x"]]
@@ -95,12 +103,27 @@ ggsave(p3, filename =paste("PCA for XXX",".pdf",sep=""),width = 5.2, height = 4)
 rm( pca1 )
 
 ### see the total difference of genes
-sd = exprset1 %>%
+# I assume you mean 'standard deviation' rather than "difference" here? So these are the top 500 most variable transcripts?
+# Another point is that these aren't necessarily "genes" yet. It depends on what this microarray targets,
+# and what level rma() summarised at for these data. E.g. these rows could represent 'probesets', 'exons', 'transcript clusters' etc.
+# Not all of these would match the definition of a gene. 
+# Your arrays here appear to be Human Genome U133 Plus 2.0 (https://www.affymetrix.com/products_services/arrays/specific/hgu133plus.affx#1_2)
+# which cover 47000 transcripts, including genes and variants. This is obviously a lot more than we would expect if these were protein-coding genes alone.
+
+# If you would like to describe the output of the following analyses as "genes",
+# you should do your probe annotation from section 4 HERE.
+# Otherwise, what you are finding and clustering are differentially expressed TRANSCRIPTS, not genes.
+# You will also have multiple transcripts from the same gene in the analysis, which might not be what you want.
+
+# I would also recommend filtering transcripts by signal intensity prior to any further analysis or annotation,
+# histograms can help here.
+
+sd = exprset1 %>% # As 'sd()' is a function in R, this call will overwrite that function. Perhaps name it something like top500_sd
   as.data.frame() %>%
   mutate( SD = apply(., 1, sd ) ) %>%
   # arrange( desc(SD) ) %>%
   slice_max( SD, n= 500 ) %>% 
-  dplyr::select( 1:ncol(exprset1) )
+  dplyr::select( 1:ncol(exprset1) ) # Is this step necessary?
 
 
 library(pheatmap) 
@@ -162,6 +185,10 @@ degs_temp <- lmFit( exprset1, design ) %>% # Fit linear model
 
 logFC_cut = with(degs_temp, mean(abs(log2FC))+2*sd(abs(log2FC))) # 取一个 log2FC 的 95% 置信区间阈值
 
+# There are problems here — the P.value from topTable is not adjusted for multiple comparisons,
+# meaning each transcript coefficient is being tested entirely independently of the 1000s of other tests.
+# I would recommend using adj.P.Val instead, which are adjusted to control the proportion of Type I errors (false discovery rate, FDR).
+# In this case, adj.P.Vals of <0.05 would reflect a FDR of <0.05.
 
 degs_temp = degs_temp %>%
   mutate( DEG = factor( ifelse( abs(degs_temp$log2FC) > logFC_cut & degs_temp$P.value < 0.05,
@@ -195,6 +222,7 @@ ggsave( p5, filename = paste("3.3_DEG火山图_",".pdf",sep= ""),width = 5, heig
 rm( logFC_cut )
 
 # just take 500 genes, base on log2FC
+# Make sure all 500 genes meet adj.P-value < 0.05 after making the suggested changes above.
 chs_x = degs_temp %>%
   slice_max( abs(log2FC), n = 500 ) 
 
@@ -265,6 +293,12 @@ p6
 rm(chs_x, heat_matrix, legend_col, bk, brk, heat1 )
 
 ## 4、probe annotation----
+
+# This should be done before the analyses above.
+# I'm not familiar with AnnoProbe so perhaps the code below accounts for this already,
+# but I would suggest annotating with Entrez (NCBI) gene IDs as well as gene symbols.
+# This would help with compatibility with packages like clusterProfiler.
+
 library(AnnoProbe)
 if (!requireNamespace("hgu133plus2.db", quietly = TRUE))
   BiocManager::install("hgu133plus2.db")
