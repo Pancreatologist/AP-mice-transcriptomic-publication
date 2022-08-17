@@ -221,7 +221,7 @@ ggsave( p5, filename = paste("2.3 volcano plot",".pdf",sep= ""),width = 5, heigh
 
 rm( logFC_cut )
 
-### 3.4 heatmap----
+### 2.4 heatmap----
 chs_x = degs_temp %>%
   slice_max( abs(log2FC), n = 500 ) 
 
@@ -275,14 +275,10 @@ degswithENTRE = degs_temp %>%
 #  slice_head( n = 300 ) # get the top 300 or other
 
 
-## e1.3 enrich based on DEG----
-library(clusterProfiler) 
-library(enrichplot) 
+### 3 enrich based on DEG
 
-load( paste('4.5_Top300DEG_','.Rdata',sep = "") )
-
-### e1.3 GOenrich----
-go_data <- enrichGO( gene = degs_top$ENTREZID, 
+### 3.1 GOenrich
+go_data <- enrichGO( gene = degswithENTRE$ENTREZID, 
                      OrgDb="hgu133plus2.db", 
                      ont ="ALL", 
                      pvalueCutoff = 0.05, 
@@ -294,24 +290,21 @@ go_data <- enrichGO( gene = degs_top$ENTREZID,
 
 xxx = go_data@result
 write.csv(xxx, file = 'GO-richment.csv')
-### e1.4 KEGG enrich----
-kegg_data <- enrichKEGG(gene = degs_top$ENTREZID, 
+### 3.2 KEGG enrich----
+kegg_data <- enrichKEGG(gene = degswithENTRE$ENTREZID, 
                         keyType = "kegg",
-                        organism   = 'hsa', # mmu is mouse，hsa is human
-                        pvalueCutoff = 1, # 1 means no selected
+                        organism   = 'hsa', # mmu is mouse，human is  hsa
+                        pvalueCutoff = 1, # 1 means with all the result without filter
                         qvalueCutoff = 1,
                         use_internal_data = F 
 ) %>%
-  setReadable( ., OrgDb = 'hgu133plus2.db', keyType = 'ENTREZID' )  %>% # ENTRZID change to SYMBOL
-  pairwise_termsim() 
+  setReadable( ., OrgDb = 'hgu133plus2.db', keyType = 'ENTREZID' )  %>% # from ENTRZID to SYMBOL
+  pairwise_termsim() # to do the further emap 
 write.csv(kegg_data, file = 'KEGG-richment.csv')
 
-
-### e1.5 visualization for enrich----
-library(DOSE)
+### 3.3 visualization for enrich----
 enrichDO()
 enrichWP()
-library(ggplot2)
 dotplot(kegg_data, showCategory= 20, title="Top enriched terms") + 
   theme_light()
 
