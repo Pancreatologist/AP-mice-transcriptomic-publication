@@ -321,3 +321,68 @@ cnetplot(go_data,showCategory = 10,
   theme_light()+
   theme(axis.text = element_blank(), axis.title = element_blank())
 
+### 3.4.1 make a list for GSEA
+# go_gmt = read.gmt("/usr/local/lib/R/Rlib/c5.go.v7.2.symbols.gmt")
+# kegg_gmt = read.gmt("/usr/local/lib/R/Rlib/c2.cp.kegg.v7.2.symbols.gmt")
+btr_gsea_order = bitr( degs_temp$symbol, 
+                       fromType = "SYMBOL", toType = c("ENTREZID"),
+                       OrgDb = hgu133plus2.db) %>% # change the GENE ID
+  mutate( log2FC = degs_temp$log2FC[ match(SYMBOL, degs_temp$symbol ) ] ) %>% # mutate the col of log2FC
+  arrange( desc( log2FC ) ) # from high to low
+
+table( is.na(btr_gsea_order$ENTREZID) )  # check na in ENTREZID
+table( is.na(btr_gsea_order$log2FC) )  # check na in log2FC
+head(btr_gsea_order) ; tail(btr_gsea_order) # check na in the order
+
+
+gsea_list = setNames( btr_gsea_order$log2FC, btr_gsea_order$ENTREZID ) # use log2FC to make the list
+
+head(gsea_list);tail(gsea_list)
+### 3.4.2 GSEA GO enrich
+gsea_go <- gseGO(gsea_list, 
+                 ont = "ALL",
+                 OrgDb = hgu133plus2.db, #human
+                 eps = 0 ) %>%
+  clusterProfiler::simplify( )  
+
+
+
+### 3.4.3 GSEA KEGG enrich
+gsea_kegg <- gseKEGG(gsea_list, 
+                     keyType = "kegg",
+                     organism = 'hsa', # human
+                     pvalueCutoff = 1,
+                     eps = 0,
+                     use_internal_data = F ) 
+# gsea_wp <- gseWP(gsea_list, organism = 'Homo sapiens', eps = 0)
+# gsea_do <- gseDO(gsea_list, by = "fgsea", eps = 0)
+
+
+### 3.4.4 visualization for GSEA GO and GSEA KEGG
+ridgeplot(gsea_go,showCategory = 30)+
+  theme_light()+
+  ggtitle("Top GSEA-GO terms")+
+  theme(
+    plot.title = element_text(hjust = 0.4),
+    plot.background = element_rect(fill = "transparent",colour = NA)
+  ) +
+  scale_fill_gradient( low = "brown", high = "blue" )
+
+ridgeplot(gsea_kegg,showCategory = 30)+
+  theme_light()+
+  ggtitle("Top GSEA-KEGG terms")+
+  theme(
+    plot.title = element_text(hjust = 0.4),
+    plot.background = element_rect(fill = "transparent",colour = NA)
+  ) +
+  scale_fill_gradient( low = "brown", high = "blue"  )
+
+enrichplot::gseaplot2(gsea_go,1:5)+
+  theme_light()+
+  ggtitle("Top 5 GSEA-GO terms")+
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.background = element_rect(fill = "transparent",colour = NA)
+  )
+
+
