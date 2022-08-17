@@ -1,23 +1,32 @@
 # First off, it's a good idea to have all your library() calls in one place at the start.
 # This makes any errors from not having a package installed appear quickly, when you run the script.
-
-#  set work dictionary ----
-
-rm( list = ls() ) # I would recommend NOT saving the R environment when closing the session. This will make this line unnecessary.
-getwd # Instead of using setwd(), I would recommend using the approach given here: https://www.tidyverse.org/blog/2017/12/workflow-vs-script/. I use the 'here' package a lot.
-setwd("C:\\Users\\wudi\\Desktop\\Di Wu project\\msap+sap vs map") 
-library(affy) # If this works for your microarray type then carry on, but if you have problems the 'oligo' package is the more modern version of 'affy', and may be more compatible with newer arrays.
+library(BiocManager)
+library(affy)
+library(here)
+library(tidyverse) # ggplot2 stringer dplyr tidyr readr purrr  tibble forcats
+library(ggsci)
+library(limma)
+library(ggfortify)
+library(ggplot2)
+library(ggsci)
+library(pheatmap)# 热图
+library(ggplotify) # 转换 pheatmap 对象为 ggplot2 对象
+library(dplyr)
+library(AnnoProbe)
+library(hgu133plus2.db)
+library(clusterProfiler)
+library(enrichplot) 
+library(DOSE)
+library(randomForest)
+library(ROCR)
+library(STRINGdb) 
+library(igraph)
+library(magrittr)
+###  set work dictionary, read files, do RMA and take the expression
+library(here)
 dir_cels='C:\\Users\\wudi\\Desktop\\Di Wu project\\msap+sap vs map\\Human AP Affymetrix Arrays\\cel_files'
 eset = ReadAffy(celfile.path=dir_cels)
-
-# Are lines 14-18 necessary? Or just experimenting? They seem to lead to a redundant result.
-raw.names<-sampleNames(eset)  
-raw.names <- a$x
-write.csv(sampleNames(eset), file = 'a.txt')
-a <- read.csv(file = 'a.txt')
-sampleNames( eset ) = raw.names # change sample name
-
-### RMA and take the expression
+raw.names <- sampleNames(eset) # change sample name
 eset_rma = rma(eset) # RMA
 # Make sure you're aware of what microarray type your data come from, and what level rma() is summarising at. For example, some Affymetrix arrays have an option to summarise at an 'exon' or a 'probeset' level with this step.
 exprset1 = exprs(eset_rma) # take the expression data from CEL files
@@ -28,23 +37,21 @@ table( is.na(exprset1) ) # chech if there is NA
 table( exprset1 < 0 ) # check if there is data less than 0
 hist(unlist( exprset1 ))
 
-# 1.1 get the sampleinfo----
-sampleinfo = pData(eset) # Where did this pData come from? This is the first time it appears, should this line come after another step?
-# get the clear group information
-library(tidyverse)
+### 1.1 get the sampleinfo----
+pData(eset)
+sampleinfo = pData(eset) # Where did this pData come from? This is the first time it appears, should this line come after another step? I wanna to use the pData to check the information of group and get the clear group information
 term_x = sampleinfo$sample 
 table(term_x)
 sort(c( "MSAPandSAP","MAP") )
 level_x = c( "MSAPandSAP","MAP")
 contrast = c( "MSAPandSAP-MAP" )
-
 b <- read.csv(file = 'APnumber.csv')#read the grouplist
 term_x <- b$RAC
 sampleinfo = sampleinfo %>% 
   mutate( Group = b$RAC )
 identical( rownames(sampleinfo), colnames(exprset1))
 
-### 1.3 look over the total data
+### 1.2 look over the total data
 boxplot( exprset1 )
 library(ggsci)
 n_select = 5000  
@@ -69,23 +76,12 @@ p1 = ggplot(expr_l,aes(x= Sample, y= Expression, fill= Group, color = Group))+
   scale_color_nejm(alpha = 1)+
   scale_fill_nejm(alpha = 0.8)
 
+# normalize based on the boxplot if necessary, based on the  rma's quantile normalisation
+#exprset1 = normalizeBetweenArrays( exprset1, method = "quantile" ) # normalizeBetweenArrays 可用于芯片数据标准化
 
-# normalize based on the boxplot
-library(limma)
-# normaliseBetweenArrays should not be necessary, quantile normalisation is performed as part of rma().
-# Could you send me an image of the boxplot from line 48 please? This should show whether rma's quantile normalisation worked.
-exprset1 = normalizeBetweenArrays( exprset1, method = "quantile" ) # normalizeBetweenArrays 可用于芯片数据标准化
-
-### 1.5 PCA
-library(devtools)
-install_github('sinhrks/ggfortify') # install commands should be left out of scripts, and only used in console. Stick to just 'library' calls, and the end user can install the package themselves if necessary.
-library(ggfortify); library(ggplot2)
-library(ggplot2) # This shou;d already be loaded from library(tidyverse) earlier
-library(ggsci) # You have already loaded this package
+### 1.3 PCA
 pca1 = prcomp( as.data.frame( t( exprset1) ) ) 
-
 xxx = pca1[["x"]]
-
 p3 = autoplot( pca1,
                data = sampleinfo, colour = "Group",
                size=2.5, frame = FALSE, frame.type = 'norm')+
@@ -99,37 +95,43 @@ p3 = autoplot( pca1,
   scale_fill_nejm(alpha = 0.8) 
 p3
 ggsave(p3, filename =paste("PCA for XXX",".pdf",sep=""),width = 5.2, height = 4)
-
 rm( pca1 )
 
-### see the total difference of genes
-# I assume you mean 'standard deviation' rather than "difference" here? So these are the top 500 most variable transcripts?
-# Another point is that these aren't necessarily "genes" yet. It depends on what this microarray targets,
-# and what level rma() summarised at for these data. E.g. these rows could represent 'probesets', 'exons', 'transcript clusters' etc.
-# Not all of these would match the definition of a gene. 
-# Your arrays here appear to be Human Genome U133 Plus 2.0 (https://www.affymetrix.com/products_services/arrays/specific/hgu133plus.affx#1_2)
-# which cover 47000 transcripts, including genes and variants. This is obviously a lot more than we would expect if these were protein-coding genes alone.
+### 1.4.1 probe annotation----
+ids=toTable(hgu133plus2SYMBOL)#take the probe ID and corespending Gene from hgu133plus2.db
+gpl_anno = ids %>% 
+  as.data.frame() %>%
+  distinct( probe_id, .keep_all = T ) # delete the dulpucated probe 
+rownames(gpl_anno) = gpl_anno$probe_id 
+head( gpl_anno )
+# clean the meaningless probe
+exprset2 = exprset1[rownames(exprset1) %in% gpl_anno$probe_id,] # delete the unmatched probe expre
+dim(exprset2)
+gpl_anno = gpl_anno[gpl_anno$probe_id %in% rownames(exprset2),] # delete the unmatched probe
 
-# If you would like to describe the output of the following analyses as "genes",
-# you should do your probe annotation from section 4 HERE.
-# Otherwise, what you are finding and clustering are differentially expressed TRANSCRIPTS, not genes.
-# You will also have multiple transcripts from the same gene in the analysis, which might not be what you want.
+### 1.4.2 expression annotation----
+identical( gpl_anno$probe_id, rownames(exprset2))# Check the rownames matched or not
+gpl_anno = gpl_anno[rownames(exprset2),] #rearrangement
 
-# I would also recommend filtering transcripts by signal intensity prior to any further analysis or annotation,
+identical( gpl_anno$probe_id, rownames(exprset2))# Check again, if true can cbind
+exprset2 = cbind(gpl_anno,exprset2)
+table(duplicated(exprset2$symbol)) #check the duplicated gene symbol
+exprset2 <- exprset2 [!duplicated(exprset2$symbol),] #delete the duplicated genes
+table(duplicated(exprset2$symbol)) #check again if all the false
+rownames(exprset2) <- exprset2$symbol # make the symbol to the rownames
+annoted_exprsetwithGeneid <- exprset2[,3:14]
+annoted_exprsetwithGeneid <- as.matrix(annoted_exprsetwithGeneid) # change dataframe to the matrix
+
+### 1.5 see the total difference of genes
+# I would also recommend filtering transcripts by signal intensity prior to any further analysis or annotation.
 # histograms can help here.
-
-sd = exprset1 %>% # As 'sd()' is a function in R, this call will overwrite that function. Perhaps name it something like top500_sd
+top500_sd = exprset1 %>%
   as.data.frame() %>%
   mutate( SD = apply(., 1, sd ) ) %>%
   # arrange( desc(SD) ) %>%
-  slice_max( SD, n= 500 ) %>% 
-  dplyr::select( 1:ncol(exprset1) ) # Is this step necessary?
-
-
-library(pheatmap) 
-library(ggplotify) 
+  slice_max( SD, n= 400 )
 legend_col = data.frame( row.names = rownames(sampleinfo),
-                         Group = sampleinfo$Group )  
+                         Group = sampleinfo$Group )  # set the grouplabel for the heatmap
 bk = 2 
 brk <- c(seq(-bk,-0.01,by=0.01),seq(0,bk,by=0.01))
 heat1 = pheatmap(sd,
@@ -141,10 +143,9 @@ heat1 = pheatmap(sd,
                  breaks=brk,
                  border_color = NA,
                  show_rownames = F,
-                 show_colnames = F
-)
+                 show_colnames = F)
 p4 = as.ggplot(heat1)+
-  ggtitle('Top 500 differentiated gene ')+  
+  ggtitle('Top 500 gene with large SD')+  
   xlab('Sample') + ylab('Gene')+
   theme(
     plot.title = element_text(hjust = 0.4),
@@ -154,9 +155,8 @@ p4
 
 rm(sd, legend_col, bk, brk, heat1 )
 
-  ## 3、DEG----
-library( limma )
-### 3.1 make the contrast----
+### 2 DEG----
+### 2.1 make the contrast----
 # group
 table(sampleinfo$Group)
 contrast
@@ -174,7 +174,7 @@ c("MSAPandSAP","MAP-MSAP+SAP")#contrast
 contrast.matrix <-makeContrasts( contrasts = c("MSAPandSAP-MAP","MAP-MSAPandSAP"), levels = design ) 
 contrast.matrix
 
-### 3.2 count the deg-probes----
+### 2.2 count the deg-genes----
 degs_temp <- lmFit( exprset1, design ) %>% # Fit linear model
   contrasts.fit( contrast.matrix ) %>% # compute estimated coefficients and standard errors for a given set of contrasts
   eBayes %>% # compute moderated t-statistics, moderated F-statistic, and log-odds of differential expression
@@ -292,34 +292,6 @@ p6 = as.ggplot(heat1)+
 p6
 rm(chs_x, heat_matrix, legend_col, bk, brk, heat1 )
 
-## 4、probe annotation----
-
-# This should be done before the analyses above.
-# I'm not familiar with AnnoProbe so perhaps the code below accounts for this already,
-# but I would suggest annotating with Entrez (NCBI) gene IDs as well as gene symbols.
-# This would help with compatibility with packages like clusterProfiler.
-
-library(AnnoProbe)
-if (!requireNamespace("hgu133plus2.db", quietly = TRUE))
-  BiocManager::install("hgu133plus2.db")
-library(hgu133plus2.db)
-ids=toTable(hgu133plus2SYMBOL)
-gpl_anno = ids %>% 
-  as.data.frame() %>%
-  distinct( probe_id, .keep_all = T ) 
-rownames(gpl_anno) = gpl_anno$probe_id
-head( gpl_anno )
-
-exprset2 = exprset1[rownames(exprset1) %in% gpl_anno$probe_id,] 
-dim(exprset2)
-gpl_anno = gpl_anno[gpl_anno$probe_id %in% rownames(exprset2),] 
-
-### 4.2 expression annotation----
-identical( gpl_anno$probe_id, rownames(exprset2))
-gpl_anno = gpl_anno[rownames(exprset2),] 
-
-identical( gpl_anno$probe_id, rownames(exprset2))
-exprset2 = cbind(gpl_anno,exprset2)
 
 
 
