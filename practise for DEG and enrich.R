@@ -116,16 +116,18 @@ gpl_anno = gpl_anno[rownames(exprset2),] #rearrangement
 identical( gpl_anno$probe_id, rownames(exprset2))# Check again, if true can cbind
 exprset2 = cbind(gpl_anno,exprset2)
 table(duplicated(exprset2$symbol)) #check the duplicated gene symbol
-exprset2 <- exprset2 [!duplicated(exprset2$symbol),] #delete the duplicated genes
-table(duplicated(exprset2$symbol)) #check again if all the false
-rownames(exprset2) <- exprset2$symbol # make the symbol to the rownames
-annoted_exprsetwithGeneid <- exprset2[,3:14]
-annoted_exprsetwithGeneid <- as.matrix(annoted_exprsetwithGeneid) # change dataframe to the matrix
+annoted_exprsetwithGeneid <- aggregate(x = exprset2[,3:ncol(exprset2)],
+                             by = list(exprset2$symbol),
+                             FUN = median)  # give the duplicated genes as mean expression
+table(duplicated(annoted_exprsetwithGeneid$symbol)) #check  if all the false
+rownames(annoted_exprsetwithGeneid) <- annoted_exprsetwithGeneid[,1] # make the first col to the rownames
+annoted_exprsetwithGeneid <- as.matrix(annoted_exprsetwithGeneid[,-1]) # delete the symbol col and change dataframe to the matrix
+
 
 ### 1.5 see the total difference of genes
-# I would also recommend filtering transcripts by signal intensity prior to any further analysis or annotation.
-# histograms can help here.
-top500_sd = exprset1 %>%
+# I would also recommend filtering transcripts by signal intensity prior to any further analysis or annotation. Answer:I do the filter as above, please check if right
+# histograms can help here. Hist what?
+top500_sd = annoted_exprsetwithGeneid %>%
   as.data.frame() %>%
   mutate( SD = apply(., 1, sd ) ) %>%
   # arrange( desc(SD) ) %>%
@@ -155,12 +157,11 @@ p4
 
 rm(sd, legend_col, bk, brk, heat1 )
 
-### 2 DEG----
+### 2 DEG
 ### 2.1 make the contrast----
 # group
 table(sampleinfo$Group)
-contrast
-
+contrast #check the righ contrast
 
 # contrast matrix
 design <- model.matrix(~0+factor(sampleinfo$Group) ) %>%
@@ -174,8 +175,8 @@ c("MSAPandSAP","MAP-MSAP+SAP")#contrast
 contrast.matrix <-makeContrasts( contrasts = c("MSAPandSAP-MAP","MAP-MSAPandSAP"), levels = design ) 
 contrast.matrix
 
-### 2.2 count the deg-genes----
-degs_temp <- lmFit( exprset1, design ) %>% # Fit linear model
+### 2.2 count the DEG----
+degs_temp <- lmFit(annoted_exprsetwithGeneid, design ) %>% # Fit linear model
   contrasts.fit( contrast.matrix ) %>% # compute estimated coefficients and standard errors for a given set of contrasts
   eBayes %>% # compute moderated t-statistics, moderated F-statistic, and log-odds of differential expression
   topTable( coef = 1, n = Inf ) %>% # this mean the first contrast
@@ -183,15 +184,14 @@ degs_temp <- lmFit( exprset1, design ) %>% # Fit linear model
   setNames( c("log2FC", "Mean.Expr", "t", "P.value", "adj.P", "B" ) ) %>%
   mutate( probe_id = rownames(.) ) 
 
-logFC_cut = with(degs_temp, mean(abs(log2FC))+2*sd(abs(log2FC))) # 取一个 log2FC 的 95% 置信区间阈值
+logFC_cut = with(degs_temp, mean(abs(log2FC))+2*sd(abs(log2FC))) # take a 95%CI for log2FC
 
 # There are problems here — the P.value from topTable is not adjusted for multiple comparisons,
 # meaning each transcript coefficient is being tested entirely independently of the 1000s of other tests.
-# I would recommend using adj.P.Val instead, which are adjusted to control the proportion of Type I errors (false discovery rate, FDR).
+# I would recommend using adj.P.Val instead, which are adjusted to control the proportion of Type I errors (false discovery rate, FDR). Answer:I change the P to adj.P in the degs_temp follow this comment. And there are all ns. I don't know if doing correctly. 
 # In this case, adj.P.Vals of <0.05 would reflect a FDR of <0.05.
-
 degs_temp = degs_temp %>%
-  mutate( DEG = factor( ifelse( abs(degs_temp$log2FC) > logFC_cut & degs_temp$P.value < 0.05,
+  mutate( DEG = factor( ifelse( abs(degs_temp$log2FC) > logFC_cut & degs_temp$adj.P < 0.05,
                                 ifelse(degs_temp$log2FC > 0, 'up','down'),
                                 'ns' ), 
                         levels = c("up", "ns", "down" ), ordered = T ) )
@@ -200,9 +200,9 @@ table( degs_temp$DEG )
 
 rm( design, contrast.matrix )
 
-### 3.3 volcano plot----
+### 2.3 volcano plot for DEG
 p5 = ggplot(data = degs_temp,
-            aes(x = log2FC, y = -log10(P.value), color = DEG)) +
+            aes(x = log2FC, y = -log10(adj.P), color = DEG)) +
   # ylim(0,25)+ 
   #  xlim(-0.005,0.005)+ 
   geom_point(size = 1, shape = 16, alpha = 0.9) +
@@ -217,53 +217,15 @@ p5 = ggplot(data = degs_temp,
   geom_vline( xintercept = c(-logFC_cut, logFC_cut), linetype = "dashed" ) +
   geom_hline( yintercept = -log10(0.05), linetype = "dashed" )
 p5
-ggsave( p5, filename = paste("3.3_DEG火山图_",".pdf",sep= ""),width = 5, height = 4)
+ggsave( p5, filename = paste("2.3 volcano plot",".pdf",sep= ""),width = 5, height = 4)
 
 rm( logFC_cut )
 
-# just take 500 genes, base on log2FC
-# Make sure all 500 genes meet adj.P-value < 0.05 after making the suggested changes above.
-chs_x = degs_temp %>%
-  slice_max( abs(log2FC), n = 500 ) 
-
-heat_matrix = exprset1[ chs_x$probe_id, ]
-
-legend_col = data.frame( row.names = rownames(sampleinfo),
-                         Group = sampleinfo$Group )  
-bk = 2 
-brk <- c(seq(-bk,-0.01,by=0.01),seq(0,bk,by=0.01))
-heat1 = pheatmap(heat_matrix,
-                 scale = "row",
-                 annotation_col = legend_col,
-                 color = c(colorRampPalette(colors = c("dodgerblue4","white"))(length(brk)/2),
-                           colorRampPalette(colors = c("white","brown"))(length(brk)/2)),
-                 legend_breaks=seq(-bk,bk,1),
-                 breaks=brk,
-                 treeheight_row = 40,
-                 treeheight_col = 40,
-                 border_color = NA,
-                 cluster_cols = F,
-                 show_rownames = F,
-                 show_colnames = F
-)
-p6 = as.ggplot(heat1)+
-  ggtitle('Top 500 DEGs')+  
-  xlab('Sample') + ylab('Gene')+
-  theme(
-    plot.title = element_text(hjust = 0.4),
-    plot.background = element_rect(fill = "transparent",colour = NA)
-  )
-p6
-
-rm(chs_x, heat_matrix, legend_col, bk, brk, heat1 )
-
 ### 3.4 heatmap----
-
 chs_x = degs_temp %>%
   slice_max( abs(log2FC), n = 500 ) 
 
-heat_matrix = exprset1[ chs_x$probe_id, ]
-
+heat_matrix <- as.matrix(row.names(degs_temp))
 legend_col = data.frame( row.names = rownames(sampleinfo),
                          Group = sampleinfo$Group )  
 bk = 2 
@@ -293,66 +255,27 @@ p6
 rm(chs_x, heat_matrix, legend_col, bk, brk, heat1 )
 
 
-
-
-###  DEG annotation without deduplication----
-degs_anno = degs_temp %>% 
-  filter( rownames(.) %in% gpl_anno$probe_id )
-gpl_anno2 = gpl_anno[ degs_anno$probe_id, ] 
-
-identical( gpl_anno2$probe_id,rownames(degs_anno))
-degs_anno = cbind( gpl_anno2,degs_anno) %>%
-  dplyr::select(-1)
-
-
-### 4.4 deduplication for DEG----
-summary( degs_anno$Mean.Expr)
-plot(table(sort(table(degs_anno$symbol))))
-table( is.na(degs_anno$P.value) )
-table( degs_anno$P.value == 0 )
-
-# deduplication for genes (the expression larger will be preserved)
-degs_final = degs_anno %>% 
-  group_by( symbol ) %>%
-  mutate( mean = mean(Mean.Expr) ) %>% 
-  group_by( ) %>% # 
-  filter( Mean.Expr >= mean | Mean.Expr >= mean(Mean.Expr) ) %>%
-  arrange( P.value ) %>%
-  distinct( symbol, .keep_all = T ) 
-
-# deduplication for DEG matrix 
-exprset3 = exprset1[ degs_final$probe_id, ] 
-identical( degs_final$probe_id, rownames(exprset3))
-#
-rownames(exprset3) = degs_final$symbol
-
-rm(pos, exprset1, exprset2, degs_temp, degs_anno, gpl_anno, gpl_anno2, xxx )
-
-
-## 4.5 filter via Mean.Expr and log2FC----
-summary(degs_final$Mean.Expr)
-summary(abs(degs_final$log2FC))
-
-# set the threshold value
-qu1 = quantile(degs_final$Mean.Expr, probs = 0.25 ) 
-fc1 = mean(abs(degs_final$log2FC))  
-qu1;fc1
-
-### DEG filter +ID change----
-library(hgu133plus2.db)
-library(clusterProfiler) 
-library(dplyr)
-#
-degs_top = degs_final %>%
-  filter( Mean.Expr > qu1 & abs(log2FC) > fc1 & P.value < 0.05 ) %>%  
-  arrange( P.value ) %>% 
-  arrange( desc( abs(log2FC) ) ) %>%
-  pull( symbol ) %>% 
-  bitr( ., fromType = "SYMBOL", toType = c("ENTREZID"), 
+### Gene ID change (from "SYMBOL" to "ENTREZID") to further using 'clusterProfiler'
+degswithENTRE = degs_temp %>%
+  mutate(symbol = row.names(degs_temp))%>%
+  pull(symbol) %>% 
+  bitr( ., fromType = "SYMBOL", toType = c("ENTREZID"), # from  'symbol' to 'ENTREZID'
         OrgDb = hgu133plus2.db ) %>%  
-  slice_head( n = 300 ) 
+# if DEG too many, that filter to 300, make a threshold
+#qu1 = quantile(degs_final$Mean.Expr, probs = 0.25 ) # expr : IQR 25%
+#fc1 = mean(abs(degs_final$log2FC))  # Log2FC :  mean
+#qu1;fc1
+# degswithENTRE = filter( Mean.Expr > qu1 & abs(log2FC) > fc1 & adj.P < 0.05 ) %>%  # expr > IQR 25%，Log2FC > mean，adj.P < 0.05
+#  arrange( adj.P ) %>% # arrange by adj.P
+#  arrange( desc( abs(log2FC) ) ) %>%
+#  mutate(symbol = row.names(degs_temp))%>%
+# pull( symbol ) %>% # 
+#  bitr( ., fromType = "SYMBOL", toType = c("ENTREZID"), 
+#        OrgDb = org.Mm.eg.db ) %>%  # from  'symbol' to 'ENTREZID'
+#  slice_head( n = 300 ) # get the top 300 or other
 
-## e1.3 enrich based on TOP300----
+
+## e1.3 enrich based on DEG----
 library(clusterProfiler) 
 library(enrichplot) 
 
