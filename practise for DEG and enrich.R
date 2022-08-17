@@ -9,8 +9,8 @@ library(limma)
 library(ggfortify)
 library(ggplot2)
 library(ggsci)
-library(pheatmap)# 热图
-library(ggplotify) # 转换 pheatmap 对象为 ggplot2 对象
+library(pheatmap)
+library(ggplotify) # make the pheatmap adpat to ggplot2 
 library(dplyr)
 library(AnnoProbe)
 library(hgu133plus2.db)
