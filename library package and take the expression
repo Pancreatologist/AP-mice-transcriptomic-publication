@@ -137,7 +137,7 @@ ids_to_exlude <- (featureNames(eset_manfiltered) %in% probe_stats$PROBEID)
 table(ids_to_exlude)
 eset_final <- subset(eset_manfiltered, !ids_to_exlude)
 validObject(eset_final)
-head(anno_eset)
+head(anno_exprset)
 fData(eset_final)$PROBEID <- rownames(fData(eset_final))
 fData(eset_final) <- left_join(fData(eset_final), anno_exprset)
 Joining, by = "PROBEID"
@@ -146,9 +146,7 @@ rownames(fData(eset_final)) <- fData(eset_final)$PROBEID
 validObject(eset_final)
 
 ### 1.5 see the total difference of genes
-# I would also recommend filtering transcripts by signal intensity prior to any further analysis or annotation. Answer:I do the filter as above, please check if right
-# histograms can help here. Hist what?
-top500_sd = annoted_exprsetwithGeneid %>%
+top500_sd = eset_final %>%
   as.data.frame() %>%
   mutate( SD = apply(., 1, sd ) ) %>%
   # arrange( desc(SD) ) %>%
