@@ -97,10 +97,30 @@ p3
 ggsave(p3, filename =paste("PCA for XXX",".pdf",sep=""),width = 5.2, height = 4)
 rm( pca1 )
 
-### 1.4.1 probe annotation----
+### 1.4.1 Filter and probe annotation----
+#Filtering based on intensity 
+eset_medians <- rowMedians(Biobase::exprs(eset_rma))
+hist_res <- hist(eset_medians, 100, col = "cornsilk1", freq = FALSE,
+                 main = "Histogram of the median intensities",
+                 border = "antiquewhite4",
+                 xlab = "Median intensities")
+man_threshold <- 4
+hist_res <- hist(eset_medians, 100, col = "cornsilk", freq = FALSE,
+                 main = "Histogram of the median intensities",
+                 border = "antiquewhite4",
+                 xlab = "Median intensities")
+abline(v = man_threshold, col = "coral4", lwd = 2)
+no_of_samples <- c(6,6) 
+samples_cutoff <- min(no_of_samples)
+idx_man_threshold <- apply(Biobase::exprs(eset_rma), 1,
+                           function(x){
+                             sum(x > man_threshold) >= samples_cutoff})
+table(idx_man_threshold)
+eset_manfiltered <- subset(eset_rma, idx_man_threshold)
+
 #Annotation of the transcript clusters
 anno_exprset <- AnnotationDbi::select(hgu133plus2.db,
-                                       keys = (featureNames(eset_rma)),
+                                       keys = (featureNames(eset_manfiltered)),
                                        columns = c("SYMBOL", "GENENAME"),
                                        keytype = "PROBEID")
 anno_exprset <- subset(anno_exprset, !is.na(SYMBOL))
@@ -113,9 +133,9 @@ anno_filtered <- filter(anno_summarized, no_of_matches > 1)
 head(anno_filtered)
 probe_stats <- anno_filtered
 nrow(probe_stats)
-ids_to_exlude <- (featureNames(eset_rma) %in% probe_stats$PROBEID)
+ids_to_exlude <- (featureNames(eset_manfiltered) %in% probe_stats$PROBEID)
 table(ids_to_exlude)
-eset_final <- subset(eset_rma, !ids_to_exlude)
+eset_final <- subset(eset_manfiltered, !ids_to_exlude)
 validObject(eset_final)
 head(anno_eset)
 fData(eset_final)$PROBEID <- rownames(fData(eset_final))
