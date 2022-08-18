@@ -98,31 +98,32 @@ ggsave(p3, filename =paste("PCA for XXX",".pdf",sep=""),width = 5.2, height = 4)
 rm( pca1 )
 
 ### 1.4.1 probe annotation----
-ids=toTable(hgu133plus2SYMBOL)#take the probe ID and corespending Gene from hgu133plus2.db
-gpl_anno = ids %>% 
-  as.data.frame() %>%
-  distinct( probe_id, .keep_all = T ) # delete the dulpucated probe 
-rownames(gpl_anno) = gpl_anno$probe_id 
-head( gpl_anno )
-# clean the meaningless probe
-exprset2 = exprset1[rownames(exprset1) %in% gpl_anno$probe_id,] # delete the unmatched probe expre
-dim(exprset2)
-gpl_anno = gpl_anno[gpl_anno$probe_id %in% rownames(exprset2),] # delete the unmatched probe
-
-### 1.4.2 expression annotation----
-identical( gpl_anno$probe_id, rownames(exprset2))# Check the rownames matched or not
-gpl_anno = gpl_anno[rownames(exprset2),] #rearrangement
-
-identical( gpl_anno$probe_id, rownames(exprset2))# Check again, if true can cbind
-exprset2 = cbind(gpl_anno,exprset2)
-table(duplicated(exprset2$symbol)) #check the duplicated gene symbol
-annoted_exprsetwithGeneid <- aggregate(x = exprset2[,3:ncol(exprset2)],
-                             by = list(exprset2$symbol),
-                             FUN = median)  # give the duplicated genes as mean expression
-table(duplicated(annoted_exprsetwithGeneid$symbol)) #check  if all the false
-rownames(annoted_exprsetwithGeneid) <- annoted_exprsetwithGeneid[,1] # make the first col to the rownames
-annoted_exprsetwithGeneid <- as.matrix(annoted_exprsetwithGeneid[,-1]) # delete the symbol col and change dataframe to the matrix
-
+#Annotation of the transcript clusters
+anno_exprset <- AnnotationDbi::select(hgu133plus2.db,
+                                       keys = (featureNames(eset_rma)),
+                                       columns = c("SYMBOL", "GENENAME"),
+                                       keytype = "PROBEID")
+anno_exprset <- subset(anno_exprset, !is.na(SYMBOL))
+#Removing multiple mappings
+anno_grouped <- group_by(anno_exprset, PROBEID) 
+anno_summarized <-
+dplyr::summarize(anno_grouped, no_of_matches = n_distinct(SYMBOL))
+head(anno_summarized)
+anno_filtered <- filter(anno_summarized, no_of_matches > 1)
+head(anno_filtered)
+probe_stats <- anno_filtered
+nrow(probe_stats)
+ids_to_exlude <- (featureNames(eset_rma) %in% probe_stats$PROBEID)
+table(ids_to_exlude)
+eset_final <- subset(eset_rma, !ids_to_exlude)
+validObject(eset_final)
+head(anno_eset)
+fData(eset_final)$PROBEID <- rownames(fData(eset_final))
+fData(eset_final) <- left_join(fData(eset_final), anno_exprset)
+Joining, by = "PROBEID"
+# restore rownames after left_join
+rownames(fData(eset_final)) <- fData(eset_final)$PROBEID
+validObject(eset_final)
 
 ### 1.5 see the total difference of genes
 # I would also recommend filtering transcripts by signal intensity prior to any further analysis or annotation. Answer:I do the filter as above, please check if right
