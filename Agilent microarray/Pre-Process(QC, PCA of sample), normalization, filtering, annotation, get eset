@@ -1,0 +1,55 @@
+###Reading Microarray Data
+target <- readTargets("Targets.txt" )
+RG <- read.maimages(target, source ="agilent") #read files
+spottypes <- readSpotTypes()
+RG$genes$Status <- controlStatus(spottypes, RG)
+plotMD(RG)
+boxplot(data.frame(log2(RG$Gb)),main="Green background") #quality characteristics of each array
+boxplot(data.frame(log2(RG$Rb)),main="Red background")
+imageplot(log2(RG$Gb[,1]),RG$printer)
+
+###Reading Probe Annotation
+names(RG$genes) #read.maimages() will contain a component called genes containing the IDs and other annotation information associated with the probes
+#RG$genes <- readGAL() #If the genes component is not set, the probe IDs will need to be read from a separate file
+
+###Quality Assessment
+spottypes <- readSpotTypes()
+RG$genes$Status <- controlStatus(spottypes, RG)
+plotMD(RG) #view the MA-plots of the unnormalized data for each array
+#background intensities to the quality characteristics of each array
+boxplot(data.frame(log2(RG$Gb)),main="Green background")
+boxplot(data.frame(log2(RG$Rb)),main="Red background")
+imageplot(log2(RG$Gb[,1]),RG$printer) #Spatial heterogeneity on individual arrays be highlighted by examining imageplots of the background intensities
+
+###Pre-Processing Two-Color Data
+##Background Correction and Normalization
+RG <- backgroundCorrect(RG, method="normexp", offset=50) #assessing differential expression
+##Within-Array Normalization
+MA <- normalizeWithinArrays(RG, method="loess") #Agilent arrays do not have print-tip groups, should use global loess normalization 
+##Between-Array Normalization
+RG.b <- backgroundCorrect(RG,method="minimum")
+plotDensities(RG.b)
+MA.p <-normalizeWithinArrays(RG.b)
+MA.pAq <- normalizeBetweenArrays(MA.p, method="Aquantile")
+plotDensities(MA.pAq)
+
+###Filtering
+Control <- MA$genes$ControlType==1L;table(Control)
+NoSymbol <- is.na(MA$genes$GeneName);table(NoSymbol)
+IsExpr <- rowSums(MA$other$gIsWellAboveBG > 0) >= 4;table(IsExpr)
+MAfilt <- MA[!Control & !NoSymbol & IsExpr & !Isdup, ]
+dim(MAfilt)
+exp = MAfilt@.Data[[1]]
+boxplot(exp)
+exp[1:2,1:2]
+
+###annotation
+anno = MAfilt$genes
+nrow(anno);nrow(exp)
+rownames(exp)=rownames(anno)
+ids = unique(anno$GeneName)
+exp = exp[!duplicated(anno$GeneName),]
+rownames(exp) = ids
+exp[1:4,1:4]
+
+
