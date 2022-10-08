@@ -1,3 +1,9 @@
 library(limma）
 library(ggplot2)
 library(factoextra)
+library(tidyverse)
+library(openxlsx)
+library(ggsci)
+library(paletteer)
+library(ggfortify) 
+library(ggtree)
