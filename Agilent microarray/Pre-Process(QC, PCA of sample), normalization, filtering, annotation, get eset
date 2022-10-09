@@ -1,6 +1,18 @@
 ###Reading Microarray Data
-target <- readTargets("Targets.txt" )
+#create a tab-delimited file, targets.txt, that looks like:
+#FileName            group hour
+#raw/GSM717459.txt   cancer 9
+#raw/GSM717460.txt   cancer 9
+target <- readTargets("Targets.txt" ) #import
 RG <- read.maimages(target, source ="agilent") #read files
+#RG <- read.maimages(
+  targetinfo,
+  source = 'agilent.median',
+  green.only = TRUE,
+  other.columns = 'gIsWellAboveBG')
+#colnames(RG) <- sub('raw\\/', '', colnames(RG))
+
+
 spottypes <- readSpotTypes()
 RG$genes$Status <- controlStatus(spottypes, RG)
 plotMD(RG)
@@ -25,7 +37,8 @@ imageplot(log2(RG$Gb[,1]),RG$printer) #Spatial heterogeneity on individual array
 ##Background Correction and Normalization
 RG <- backgroundCorrect(RG, method="normexp", offset=50) #assessing differential expression
 ##Within-Array Normalization
-MA <- normalizeWithinArrays(RG, method="loess") #Agilent arrays do not have print-tip groups, should use global loess normalization 
+RGb <- backgroundCorrect(RG, method="normexp")
+MA <- normalizeWithinArrays(RGb, method="loess") #Agilent arrays do not have print-tip groups, should use global loess normalization 
 ##Between-Array Normalization
 RG.b <- backgroundCorrect(RG,method="minimum")
 plotDensities(RG.b)
