@@ -33,39 +33,7 @@ boxplot(data.frame(log2(RG$Gb)),main="Green background")
 boxplot(data.frame(log2(RG$Rb)),main="Red background")
 imageplot(log2(RG$Gb[,1]),RG$printer) #Spatial heterogeneity on individual arrays be highlighted by examining imageplots of the background intensities
 
-###Pre-Processing Two-Color Data
-##Background Correction and Normalization
-RG <- backgroundCorrect(RG, method="normexp", offset=50) #assessing differential expression
-##Within-Array Normalization
-RGb <- backgroundCorrect(RG, method="normexp")
-MA <- normalizeWithinArrays(RGb, method="loess") #Agilent arrays do not have print-tip groups, should use global loess normalization 
-##Between-Array Normalization
-RG.b <- backgroundCorrect(RG,method="minimum")
-plotDensities(RG.b)
-MA.p <-normalizeWithinArrays(RG.b)
-MA.pAq <- normalizeBetweenArrays(MA.p, method="Aquantile")
-plotDensities(MA.pAq)
-
-###Filtering
-Control <- MA$genes$ControlType==1L;table(Control)
-NoSymbol <- is.na(MA$genes$GeneName);table(NoSymbol)
-IsExpr <- rowSums(MA$other$gIsWellAboveBG > 0) >= 4;table(IsExpr)
-MAfilt <- MA[!Control & !NoSymbol & IsExpr & !Isdup, ]
-dim(MAfilt)
-eset = MAfilt@.Data[[1]]
-boxplot(eset)
-eset[1:2,1:2]
-
-###annotation
-anno = MAfilt$genes
-nrow(anno);nrow(eset)
-rownames(eset)=rownames(anno)
-ids = unique(anno$GeneName)
-eset = eset[!duplicated(anno$GeneName),]
-rownames(exp) = ids
-eset[1:4,1:4]
-write.exprs(eset,file="xxxdata.txt")
-###PCA for group
+###PCA for group before the normolization 
 PCA <- prcomp(t(eset), scale = FALSE)
 percentVar <- round(100*PCA$sdev^2/sum(PCA$sdev^2),1)
 sd_ratio <- sqrt(percentVar[2] / percentVar[1])
@@ -110,3 +78,36 @@ write.table(pca.sum$importance, file="importance.xls", quote=F, sep = "\t")
              ellipse.level=0.9,
              palette = c("#CC3333", "#339999"))+ #Cell配色哦
   theme(panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"))#加个边框
+###Pre-Processing Two-Color Data
+##Background Correction and Normalization
+RG <- backgroundCorrect(RG, method="normexp", offset=50) #assessing differential expression
+##Within-Array Normalization
+RGb <- backgroundCorrect(RG, method="normexp")
+MA <- normalizeWithinArrays(RGb, method="loess") #Agilent arrays do not have print-tip groups, should use global loess normalization 
+##Between-Array Normalization
+RG.b <- backgroundCorrect(RG,method="minimum")
+plotDensities(RG.b)
+MA.p <-normalizeWithinArrays(RG.b)
+MA.pAq <- normalizeBetweenArrays(MA.p, method="Aquantile")
+plotDensities(MA.pAq)
+
+###Filtering
+Control <- MA$genes$ControlType==1L;table(Control)
+NoSymbol <- is.na(MA$genes$GeneName);table(NoSymbol)
+IsExpr <- rowSums(MA$other$gIsWellAboveBG > 0) >= 4;table(IsExpr)
+MAfilt <- MA[!Control & !NoSymbol & IsExpr & !Isdup, ]
+dim(MAfilt)
+eset = MAfilt@.Data[[1]]
+boxplot(eset)
+eset[1:2,1:2]
+
+###annotation
+anno = MAfilt$genes
+nrow(anno);nrow(eset)
+rownames(eset)=rownames(anno)
+ids = unique(anno$GeneName)
+eset = eset[!duplicated(anno$GeneName),]
+rownames(exp) = ids
+eset[1:4,1:4]
+write.exprs(eset,file="xxxdata.txt")
+
