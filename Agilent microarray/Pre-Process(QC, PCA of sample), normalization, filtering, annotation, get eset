@@ -68,4 +68,32 @@ ggplot(dataGG, aes(PC1, PC2)) +
   coord_fixed(ratio = sd_ratio) +
   scale_shape_manual(values = c(4,15)) +
   scale_color_manual(values = c("darkorange2", "dodgerblue4"))
-
+  
+###groups <- as.factor(decathlon2$Competition[1:23])
+###fviz_pca_ind(res.pca,
+             col.ind = groups, # color by groups
+             palette = c("#00AFBB",  "#FC4E07"),
+             addEllipses = TRUE, # Concentration ellipses
+             ellipse.type = "confidence",
+             legend.title = "Groups",
+             repel = TRUE
+             )
+###PCA分析
+data.pca <- prcomp(data, scale. = T)  #这是后续作图的文件
+#输出特征向量
+write.table(data.pca$rotation, file="PC.xls", quote=F, sep = "\t")
+#输出新表
+write.table(predict(data.pca), file="newTab.xls", quote=F, sep = "\t")
+#输出PC比重
+pca.sum=summary(data.pca)
+write.table(pca.sum$importance, file="importance.xls", quote=F, sep = "\t")
+##group=c(rep("Control",3),rep("Test",3)) #make group
+##fviz_pca_ind(data.pca,
+             col.ind=group,
+             mean.point=F,
+             addEllipses = T, 
+             legend.title="Groups",
+             ellipse.type="confidence",
+             ellipse.level=0.9,
+             palette = c("#CC3333", "#339999"))+ #Cell配色哦
+  theme(panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"))#加个边框
