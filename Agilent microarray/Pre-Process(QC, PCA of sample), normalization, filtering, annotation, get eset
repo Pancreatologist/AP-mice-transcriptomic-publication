@@ -1,15 +1,8 @@
 ###Reading Microarray Data
-#create a tab-delimited file, targets.txt, that looks like:
-#FileName            group hour
-#raw/GSM717459.txt   cancer 9
-#raw/GSM717460.txt   cancer 9
-target <- readTargets("Targets.txt" ) #import
+#create a tab-delimited file, targets.txt
+target <- readTargets("CER.txt" ) #import all the CER group and control group
 RG <- read.maimages(target, source ="agilent") #read files
-#RG <- read.maimages(
-  targetinfo,
-  source = 'agilent.median',
-  green.only = TRUE,
-  other.columns = 'gIsWellAboveBG')
+
 #colnames(RG) <- sub('raw\\/', '', colnames(RG))
 
 
@@ -25,13 +18,11 @@ names(RG$genes) #read.maimages() will contain a component called genes containin
 #RG$genes <- readGAL() #If the genes component is not set, the probe IDs will need to be read from a separate file
 
 ###Quality Assessment
-spottypes <- readSpotTypes()
-RG$genes$Status <- controlStatus(spottypes, RG)
-plotMD(RG) #view the MA-plots of the unnormalized data for each array
-#background intensities to the quality characteristics of each array
-boxplot(data.frame(log2(RG$Gb)),main="Green background")
+summary(RG$R)
+plotMD(RG)
+boxplot(data.frame(log2(RG$Gb)),main="Green background") #quality characteristics of each array
 boxplot(data.frame(log2(RG$Rb)),main="Red background")
-imageplot(log2(RG$Gb[,1]),RG$printer) #Spatial heterogeneity on individual arrays be highlighted by examining imageplots of the background intensities
+imageplot(log2(RG$Gb[,1]),RG$printer)
 
 ###PCA for group before the normolization 
 PCA <- prcomp(t(eset), scale = FALSE)
@@ -79,35 +70,26 @@ write.table(pca.sum$importance, file="importance.xls", quote=F, sep = "\t")
              palette = c("#CC3333", "#339999"))+ #Cell配色哦
   theme(panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"))#加个边框
 ###Pre-Processing Two-Color Data
-##Background Correction and Normalization
-RG <- backgroundCorrect(RG, method="normexp", offset=50) #assessing differential expression
-##Within-Array Normalization
-RGb <- backgroundCorrect(RG, method="normexp")
-MA <- normalizeWithinArrays(RGb, method="loess") #Agilent arrays do not have print-tip groups, should use global loess normalization 
-##Between-Array Normalization
-RG.b <- backgroundCorrect(RG,method="minimum")
-plotDensities(RG.b)
-MA.p <-normalizeWithinArrays(RG.b)
-MA.pAq <- normalizeBetweenArrays(MA.p, method="Aquantile")
-plotDensities(MA.pAq)
+### Perform background correction on the fluorescent intensities
+RG.bgcorrect <- backgroundCorrect(RG, method = 'normexp', offset = 16)
+### Normalize the data in array with the 'loess' method
+RG.bgcorrect.norm <- normalizeWithinArrays(RG.bgcorrect, method = 'loess')
+plotMD(RG.bgcorrect.norm)
+### Normalize the data between arrays 
+MA <- normalizeBetweenArrays(RG.bgcorrect.norm, method = "Aquantile")
+plotDensities(RG.bgcorrect.norm)#check the signal density map
+plotDensities(MA)
+MA$genes$ControlType %>% unique() #include what category of probe
 
-###Filtering
-Control <- MA$genes$ControlType==1L;table(Control)
-NoSymbol <- is.na(MA$genes$GeneName);table(NoSymbol)
-IsExpr <- rowSums(MA$other$gIsWellAboveBG > 0) >= 4;table(IsExpr)
-MAfilt <- MA[!Control & !NoSymbol & IsExpr & !Isdup, ]
-dim(MAfilt)
-eset = MAfilt@.Data[[1]]
-boxplot(eset)
-eset[1:2,1:2]
+### remove the control probe
+keepProbe <- MA$genes$ControlType == 0
+MA.reomoveCTprobe <- MA[keepProbe,] #remove the control probe
+MA.reomoveCTprobe$genes$ProbeName %>% table() %>% sort(decreasing = TRUE) %>% head(n = 3) 
+MA.reomoveCTprobe.average <- avereps(MA.reomoveCTprobe, ID = MA.reomoveCTprobe$genes$ProbeName) # take an average of probe
 
-###annotation
-anno = MAfilt$genes
-nrow(anno);nrow(eset)
-rownames(eset)=rownames(anno)
-ids = unique(anno$GeneName)
-eset = eset[!duplicated(anno$GeneName),]
-rownames(exp) = ids
-eset[1:4,1:4]
-write.exprs(eset,file="xxxdata.txt")
+### For replicate probes in each sample, replace values with the average
+MA.reomoveCTprobe.average <- avereps(
+  MA.reomoveCTprobe,
+  ID = MA.reomoveCTprobe$genes$ProbeName)
+
 
