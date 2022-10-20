@@ -1,0 +1,82 @@
+###Read in and normalise data
+target <- readTargets("CER.txt" ) #import all the CER group and control group
+rownames(target) <- removeExt(target$FileName)
+target
+RG <- read.maimages(target, source ="agilent") #read files
+
+###Quality Assessment
+summary(RG$R)
+plotMD(RG)
+boxplot(data.frame(log2(RG$Gb)),main="Green background") #quality characteristics of each array
+boxplot(data.frame(log2(RG$Rb)),main="Red background")
+imageplot(log2(RG$Gb[,1]),RG$printer)
+
+### Perform background correction on the fluorescent intensities
+RG.bgcorrect <- backgroundCorrect(RG, method = 'normexp', offset = 16) #offset may depend on the number of sample (25%-50%)
+
+### Normalize the data in array with the 'loess' method
+RG.bgcorrect.norm <- normalizeWithinArrays(RG.bgcorrect, method = 'loess')
+plotMD(RG.bgcorrect.norm)
+
+### Normalize the data between arrays 
+MA <- normalizeBetweenArrays(RG.bgcorrect.norm, method = "Aquantile")
+plotDensities(RG.bgcorrect.norm)#check the signal density map
+plotDensities(MA)
+MA$genes$ControlType %>% unique() #include what category of probe
+
+### remove the control probe
+keepProbe <- MA$genes$ControlType == 0
+MA.reomoveCTprobe <- MA[keepProbe,] #remove the control probe
+MA.reomoveCTprobe$genes$ProbeName %>% table() %>% sort(decreasing = TRUE) %>% head(n = 3) 
+MA.reomoveCTprobe.average <- avereps(MA.reomoveCTprobe, ID = MA.reomoveCTprobe$genes$ProbeName) # take an average of probe
+
+### For replicate probes in each sample, replace values with the average
+MA.reomoveCTprobe.average <- avereps(
+  MA.reomoveCTprobe,
+  ID = MA.reomoveCTprobe$genes$ProbeName)
+MA.reomoveCTprobe.average$targets
+
+###annotation gene names and filter no significance probe 
+Annotationname = MA.reomoveCTprobe.average$genes %>% 
+  filter( !grepl( "Unknown", Description ) ) %>% #there are many genes with Description 'unknown' 
+  filter( !grepl( "^chr", GeneName ) ) # there are many gene names begin with 'chr'
+rownames(Annotationname) <- Annotationname$GeneName 
+#it has the gene name, Gordon Smyth also said that a few duplicate gene symbols cause no problems so it is generally best to simply keep all the probes in the DE analysis
+#https://www.biostars.org/p/484527/#486185, but i annotation before DE analyze of eset following your suggestion
+
+### Array Quality Weights
+arrayw <- arrayWeights(MA.reomoveCTprobe.average)
+barplot(arrayw, xlab="Array", ylab="Weight", col="white", las=2)
+abline(h=1, lwd=1, lty=2)
+
+### analyze from MA list #in this way, i only can do it up to DEG via topTable function
+targets2 <- targetsA2C(target)
+u <- unique(targets2$Target)
+f <- factor(targets2$Target, levels=u)
+design <- model.matrix(~0+f) #make the design with each color of total sample
+#design <-  model.matrix(~f+targets2$Batch) #there is the information of batch on the target, but when i added the batch, the result seems no correlated 
+colnames(design) <- u
+rownames(design) <- rownames(targets2)
+corfit <- intraspotCorrelation(MA.reomoveCTprobe.average, design)
+fit <- lmscFit(MA.reomoveCTprobe.average, design, correlation=corfit$consensus)
+cont.matrix <- makeContrasts("wt.C7-wt.SC7",levels=design)
+fit2 <- contrasts.fit(fit, cont.matrix)
+fit2 <- eBayes(fit2)
+volcanoplot(fit2)
+topTable(fit2)
+summary(topTable(fit2))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
