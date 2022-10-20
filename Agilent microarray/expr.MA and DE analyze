@@ -1,0 +1,75 @@
+###return the expression data of each color from two color array, i think which may be correct but need to valid.
+#Gordon Smyth said that we do not need to disassemble the limma data objects.https://www.biostars.org/p/492110/
+targets2 <- targetsA2C(target)
+eset = exprs.MA(MA.reomoveCTprobe.average) #get the expression from MA
+colnames(eset) <- targets2$Target
+rownames(eset) <- MA.reomoveCTprobe.average$genes$GeneName
+eset <- eset[row.names(eset) %in% row.names(Annotationname), ] #filter eset to only mRNA based on filter genes
+
+### remove batch effect
+batch <- targets2$Batch
+eset <- removeBatchEffect(eset, batch)
+
+### check the PCA of sample
+PCA <- prcomp(t(eset), scale = FALSE)
+percentVar <- round(100*PCA$sdev^2/sum(PCA$sdev^2),1)
+sd_ratio <- sqrt(percentVar[2] / percentVar[1])
+dataGG <- data.frame(PC1 = PCA$x[,1], PC2 = PCA$x[,2],
+                     Model =
+                       targets2$Target)
+ggplot(dataGG, aes(PC1, PC2)) +
+  geom_point(aes(shape = Model)) +
+  ggtitle("PCA (cluster experimental groups)") +
+  xlab(paste0("PC1, VarExp: ", percentVar[1], "%")) +
+  ylab(paste0("PC2, VarExp: ", percentVar[2], "%")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_fixed(ratio = sd_ratio) +
+  scale_shape_manual(values = c(1:12))
+  
+  ### DEG
+### firstly check the PCA of each comtrast
+eset_new <- eset[,c(10,11,35,38,47,50,60,61,63,64,67,72)]#choose the target col number
+pca.info <- fast.prcomp(eset_new)
+pcadata <- data.frame(sample = rownames(pca.info$rotation),Type = c(rep('wt.C7plus6',6),rep('wt.SC7plus6',6)),pca.info$rotation)
+ggscatter(pcadata,x = 'PC1',y = 'PC2',
+          color = 'Type',
+          ellipse = TRUE, #make a sepration between two group or add # ellipse.type = 'convex',
+          size =4, palette = c('#1d419b','#CC0000'),
+          main = 'PCA plot') 
+boxplot(eset_new)
+
+### make contrast for DEG
+u <- unique(targets2$Target)
+f <- factor(targets2$Target, levels=u)
+design <- model.matrix(~0+f) #make the design with each color of total sample
+colnames(design) <- u
+rownames(design) <- rownames(targets2)
+cont.matrix <- makeContrasts(wt.C7vswt.SC7=wt.C7-wt.SC7,levels=design)
+degs_temp <- lmFit(eset, design) %>% # Fit linear model
+  contrasts.fit( cont.matrix ) %>% # compute estimated coefficients and standard errors for a given set of contrasts
+  eBayes%>% # compute moderated t-statistics, moderated F-statistic, and log-odds of differential expression
+  topTable(adjust="BH",n = Inf )%>%
+  na.omit 
+logFC_cut = with(degs_temp, mean(abs(logFC))+2*sd(abs(logFC)))
+degs_temp = degs_temp %>%
+  mutate( DEG = factor( ifelse( abs(degs_temp$logFC) > logFC_cut & degs_temp$adj.P.Val < 0.05,
+                                ifelse(degs_temp$logFC > 0, 'up','down'),
+                                'ns' ), 
+                        levels = c("up", "ns", "down" ), ordered = T ) )
+summary(degs_temp)
+
+### volcano plot 
+p1 = ggplot(data = degs_temp,
+            aes(x = logFC, y = -log10(adj.P.Val))) +
+  geom_point(size = 1, shape = 16, alpha = 0.9) +
+  ggtitle('Distribution of DEGs in wt.C7-wt.SC7') +
+  theme_light() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.background = element_rect(fill = "transparent",colour = NA)
+  ) +
+  scale_color_manual(values = c('brown','grey','dodgerblue3' ))+
+  guides(color = guide_legend(override.aes = list(size = 4))) +
+  geom_vline( xintercept = c(-1, 1), linetype = "dashed" ) +
+  geom_hline( yintercept = -log10(0.05), linetype = "dashed" )
+p1
