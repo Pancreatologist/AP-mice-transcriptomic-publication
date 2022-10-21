@@ -2,7 +2,7 @@
 #Gordon Smyth said that we do not need to disassemble the limma data objects.https://www.biostars.org/p/492110/
 targets2 <- targetsA2C(target)
 eset = exprs.MA(MA.reomoveCTprobe.average) #get the expression from MA
-colnames(eset) <- targets2$Target
+colnames(eset) <- rownames(targets2)
 rownames(eset) <- MA.reomoveCTprobe.average$genes$GeneName
 eset <- eset[row.names(eset) %in% row.names(Annotationname), ] #filter eset to only mRNA based on filter genes
 
