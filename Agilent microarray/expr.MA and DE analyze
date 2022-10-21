@@ -73,3 +73,37 @@ p1 = ggplot(data = degs_temp,
   geom_vline( xintercept = c(-1, 1), linetype = "dashed" ) +
   geom_hline( yintercept = -log10(0.05), linetype = "dashed" )
 p1
+
+### heatmap
+chs_x = degs_temp %>%
+  slice_max( abs(logFC), n = 500 ) 
+heat_matrix <- eset[row.names(eset) %in% row.names(chs_x), ] 
+
+legend_col = data.frame(row.names = colnames(eset),
+  Group= targets2$Target)  # set the labol of group
+rownames(legend_col) <- colnames(heat_matrix)
+bk = 2 # set the color of bk
+brk <- c(seq(-bk,-0.01,by=0.01),seq(0,bk,by=0.01))
+heat1 = pheatmap(heat_matrix,
+                 scale = "row",
+                 # kmeans_k = 3, # k-means based on gene 
+                 annotation_col = legend_col,
+                 color = c(colorRampPalette(colors = c("dodgerblue4","white"))(length(brk)/2),
+                           colorRampPalette(colors = c("white","brown"))(length(brk)/2)),
+                 legend_breaks=seq(-bk,bk,1),
+                 breaks=brk,
+                 treeheight_row = 40,
+                 treeheight_col = 40,
+                 border_color = NA,
+                 cluster_cols = F,
+                 show_rownames = F,
+                 show_colnames = F
+)
+p2 = as.ggplot(heat1)+
+  ggtitle('Top 500 DEGs')+  
+  xlab('Group') + ylab('Gene')+
+  theme(
+    plot.title = element_text(hjust = 0.4),
+    plot.background = element_rect(fill = "transparent",colour = NA)
+  )
+p2
