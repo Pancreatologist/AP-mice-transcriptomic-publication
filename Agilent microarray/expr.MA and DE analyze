@@ -28,7 +28,7 @@ ggplot(dataGG, aes(PC1, PC2)) +
   
   ### DEG
 ### firstly check the PCA of each comtrast
-eset_new <- eset[,c(10,11,35,38,47,50,60,61,63,64,67,72)]#choose the target col number
+eset_new = eset[, targets2$Target %in% c('wt.C7','wt.Control') ] # choose the target col which filename cooresponding to group in target
 pca.info <- fast.prcomp(eset_new)
 pcadata <- data.frame(sample = rownames(pca.info$rotation),Type = c(rep('wt.C7plus6',6),rep('wt.SC7plus6',6)),pca.info$rotation)
 ggscatter(pcadata,x = 'PC1',y = 'PC2',
