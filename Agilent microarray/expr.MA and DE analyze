@@ -11,7 +11,6 @@ batch <- targets2$Batch
 eset <- removeBatchEffect(eset, batch)
 sampleinfo <- targets2$Target %>% as.data.frame()%>%mutate(rownames(targets2)) %>% `colnames<-`(c('group','filenames')) 
 
-
 ### check the PCA of sample
 PCA <- prcomp(t(eset), scale = FALSE)
 percentVar <- round(100*PCA$sdev^2/sum(PCA$sdev^2),1)
