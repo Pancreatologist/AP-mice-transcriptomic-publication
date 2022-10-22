@@ -9,7 +9,10 @@ eset <- eset[row.names(eset) %in% row.names(Annotationname), ] #filter eset to o
 ### remove batch effect
 batch <- targets2$Batch
 eset <- removeBatchEffect(eset, batch)
-sampleinfo <- targets2$Target %>% as.data.frame()%>%mutate(rownames(targets2)) %>% `colnames<-`(c('group','filenames')) 
+sampleinfo <- targets2$Target %>% as.data.frame()%>%
+  mutate(rownames(targets2)) %>%
+  `colnames<-`(c('group','filenames'))
+
 
 ### check the PCA of sample
 PCA <- prcomp(t(eset), scale = FALSE)
@@ -27,9 +30,10 @@ ggplot(dataGG, aes(PC1, PC2)) +
   coord_fixed(ratio = sd_ratio) +
   scale_shape_manual(values = c(1:12))
   
-  ### DEG
+### DEG
 ### firstly check the PCA of each comtrast
 eset_new = eset[, targets2$Target %in% c('wt.C7','wt.Control') ] # choose the target col which filename cooresponding to group in target
+sampleinfonew <- sampleinfo[sampleinfo$group%in%c('wt.C7','wt.Control'),]
 pca.info <- fast.prcomp(eset_new)
 pcadata <- data.frame(sample = rownames(pca.info$rotation),Type = c(rep('wt.C7plus6',6),rep('wt.SC7plus6',6)),pca.info$rotation)
 ggscatter(pcadata,x = 'PC1',y = 'PC2',
@@ -80,8 +84,8 @@ chs_x = degs_temp %>%
   slice_max( abs(logFC), n = 500 ) 
 heat_matrix <- eset_new[row.names(eset_new) %in% row.names(chs_x), ] 
 
-legend_col = data.frame(row.names = colnames(eset),
-  Group= targets2$Target)  # set the labol of group
+legend_col = data.frame(row.names = colnames(eset_new),
+  Group= sampleinfonew$group)  # set the labol of group
 rownames(legend_col) <- colnames(heat_matrix)
 bk = 2 # set the color of bk
 brk <- c(seq(-bk,-0.01,by=0.01),seq(0,bk,by=0.01))
