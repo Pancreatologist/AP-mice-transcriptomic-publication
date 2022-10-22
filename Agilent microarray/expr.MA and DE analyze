@@ -79,19 +79,18 @@ p1 = ggplot(data = degs_temp,
   geom_hline( yintercept = -log10(0.05), linetype = "dashed" )
 p1
 
-### heatmap
 chs_x = degs_temp %>%
   slice_max( abs(logFC), n = 50 ) 
 heat_matrix <- eset_new [row.names(eset_new) %in% row.names(chs_x), ] 
 legend_col = data.frame(row.names = colnames(eset_new),
   Group= sampleinfonew$group)  # set the label of group
 rownames(legend_col) <- colnames(heat_matrix)
-brk <- c(seq(-bk,-0.01,by=0.01),seq(0,bk,by=0.01))
-heat1 <- pheatmap(heat_matrix, scale="row",
+heat1 <- pheatmap(heat_matrix, scale="row", name = 'Expression level',
               cellwidth = 10,cellheight = 5, # 设置热图方块宽度和高度
               border="white",
               annotation_col = legend_col,
               cluster_rows = F,# del the cluster of genes
+              cluster_cols = TRUE,
               show_rownames = F, #去掉横、纵坐标id
               show_colnames = F, 
               clustering_distance_rows = "minkowski", # 设置聚类的距离类型
