@@ -86,22 +86,23 @@ legend_col = data.frame(row.names = colnames(eset_new),
   Group= sampleinfonew$group)  # set the label of group
 rownames(legend_col) <- colnames(heat_matrix)
 heat1 <- pheatmap(heat_matrix, scale="row", name = 'Expression level',
-              cellwidth = 10,cellheight = 5, # 设置热图方块宽度和高度
-              border="white",
-              annotation_col = legend_col,
-              cluster_rows = F,# del the cluster of genes
-              cluster_cols = TRUE,
-              show_rownames = F, #去掉横、纵坐标id
-              show_colnames = F, 
-              clustering_distance_rows = "minkowski", # 设置聚类的距离类型
-              color = c(colorRampPalette(colors = c("dodgerblue4","white"))(length(brk)/2),
-                        colorRampPalette(colors = c("white","brown"))(length(brk)/2)),
-              #cutree_cols = 3, #划分列
-              #cutree_rows =5, #划分行
-              #cluster_cols = TRUE,treeheight_col = 20, #按照列（样本名）划分区域
-              #cluster_rows = T,treeheight_row = 20,按照行（基因名）划分区域
-              fontsize_row = 12, # 分别设置横向和纵向字体大小
-              fontsize_col = 16)
+                  cellwidth = 10,cellheight = 5, # 设置热图方块宽度和高度
+                  border="white",
+                  annotation_col = legend_col,
+                  annotation_colors = list(Group=(c(wt.C7="#1B9E77",wt.Control="#D95F02"))),
+                  cluster_rows = F,# del the cluster of genes
+                  cluster_cols = TRUE,
+                  show_rownames = F, #去掉横、纵坐标id
+                  show_colnames = F, 
+                  clustering_distance_rows = "minkowski", # 设置聚类的距离类型
+                  color = c(colorRampPalette(colors = c("dodgerblue4","white"))(length(brk)/2),
+                            colorRampPalette(colors = c("white","brown"))(length(brk)/2)),
+                  #cutree_cols = 3, #划分列
+                  #cutree_rows =5, #划分行
+                  #cluster_cols = TRUE,treeheight_col = 20, #按照列（样本名）划分区域
+                  #cluster_rows = T,treeheight_row = 20,按照行（基因名）划分区域
+                  fontsize_row = 12, # 分别设置横向和纵向字体大小
+                  fontsize_col = 16)
 heat1
 p2 = as.ggplot(heat1)+
   ggtitle('Top 500 DEGs')+  
