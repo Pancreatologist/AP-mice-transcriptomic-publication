@@ -77,7 +77,7 @@ p1
 ### heatmap
 chs_x = degs_temp %>%
   slice_max( abs(logFC), n = 500 ) 
-heat_matrix <- eset[row.names(eset) %in% row.names(chs_x), ] 
+heat_matrix <- eset_new[row.names(eset_new) %in% row.names(chs_x), ] 
 
 legend_col = data.frame(row.names = colnames(eset),
   Group= targets2$Target)  # set the labol of group
