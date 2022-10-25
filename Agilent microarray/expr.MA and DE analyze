@@ -57,13 +57,25 @@ degs_temp <- lmFit(eset, design) %>% # Fit linear model
   na.omit 
 logFC_cut = with(degs_temp, mean(abs(logFC))+2*sd(abs(logFC)))
 degs_temp = degs_temp %>%
-  mutate( DEG = factor( ifelse( abs(degs_temp$logFC) > logFC_cut & degs_temp$adj.P.Val < 0.05,
+  mutate( DEG = factor( ifelse( abs(degs_temp$logFC) > 1 & degs_temp$adj.P.Val < 0.05,
                                 ifelse(degs_temp$logFC > 0, 'up','down'),
                                 'ns' ), 
-                        levels = c("up", "ns", "down" ), ordered = T ) )
+                        levels = c("up", "ns", "down" ), ordered = F ) )%>%
+  mutate( row = rownames(degs_temp)) # for the volcano plot
 summary(degs_temp)
 
 ### volcano plot 
+#first choice
+p1 <- gradual_volcano(degs_temp, x = "logFC", y = "adj.P.Val",
+                      fills = brewer.pal(5, "RdYlBu"),
+                      colors = brewer.pal(8, "RdYlBu"),
+                      x_lab = 'logFC',
+                      y_lab = '-log10(adj.P value)',
+                      legend_title = '-log10',
+                      pointSizeRange = c(0.5, 4),
+                      label = "row", label_number = 10, output = FALSE)
+p1 
+#second choice
 p1 = ggplot(data = degs_temp,
             aes(x = logFC, y = -log10(adj.P.Val))) +
   geom_point(size = 1, shape = 16, alpha = 0.9) +
