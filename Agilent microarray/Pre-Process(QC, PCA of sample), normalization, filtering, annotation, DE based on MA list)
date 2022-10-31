@@ -44,9 +44,9 @@ rownames(Annotationname) <- Annotationname$GeneName
 #it has the gene name, Gordon Smyth also said that a few duplicate gene symbols cause no problems so it is generally best to simply keep all the probes in the DE analysis
 #https://www.biostars.org/p/484527/#486185, so for the DE analyze visa MA.list i annotated them after DE, but i annotation before DE analyze of eset following your suggestion
 
-### remove batch effect
-batch = target$Batch
-MA.reomoveCTprobe.average.withoutBatch <- ComBat(MA.reomoveCTprobe.average, batch,BPPARAM = bpparam("SerialParam")) #Combat will get a matrix of array which may
+### remove batch effect, which may only do it for edata?
+#batch = target$Batch
+#MA.reomoveCTprobe.average.withoutBatch <- ComBat(MA.reomoveCTprobe.average, batch,BPPARAM = bpparam("SerialParam")) #Combat will get a matrix of array which may
                                                                                                                       not suitable for MA.list analyze.
 
 
