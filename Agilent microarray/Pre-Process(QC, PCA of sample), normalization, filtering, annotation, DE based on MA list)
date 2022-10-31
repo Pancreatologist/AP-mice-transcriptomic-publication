@@ -46,7 +46,8 @@ rownames(Annotationname) <- Annotationname$GeneName
 
 ### remove batch effect
 batch = target$Batch
-MA.reomoveCTprobe.average.withoutBatch <- ComBat(MA.reomoveCTprobe.average, batch,BPPARAM = bpparam("SerialParam"))
+MA.reomoveCTprobe.average.withoutBatch <- ComBat(MA.reomoveCTprobe.average, batch,BPPARAM = bpparam("SerialParam")) #Combat will get a matrix of array which may
+                                                                                                                      not suitable for MA.list analyze.
 
 
 ### Array Quality Weights
@@ -59,7 +60,8 @@ targets2 <- targetsA2C(target)
 u <- unique(targets2$Target)
 f <- factor(targets2$Target, levels=u)
 design <- model.matrix(~0+f) #make the design with each color of total sample
-#design <-  model.matrix(~f+targets2$Batch) #there is the information of batch on the target, but when i added the batch, it doesnt work 
+#design <-  model.matrix(~f+targets2$Batch) #there is the information of batch on the target, but when i added the batch, it doesnt work, it will added a col with Batch
+                                             and it will make the design matrix not suitable for the MA.list.
 colnames(design) <- u
 rownames(design) <- rownames(targets2)
 corfit <- intraspotCorrelation(MA.reomoveCTprobe.average, design)
