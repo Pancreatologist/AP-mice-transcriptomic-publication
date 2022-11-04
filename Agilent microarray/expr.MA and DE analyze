@@ -6,13 +6,28 @@ colnames(eset) <- rownames(targets2) # If it arranged correctly, this code may b
 rownames(eset) <- MA.reomoveCTprobe.average$genes$GeneName #make the rowname to the genenames from the rawdata
 eset <- eset[row.names(eset) %in% row.names(Annotationname), ] #filter eset to only mRNA based on filter genes which i do it in the pre-process(excluding some begining with 'chr')
 
-### remove batch effect
-batch <- targets2$Batch
-eset <- removeBatchEffect(eset, batch)
-sampleinfo <- targets2$Target %>% as.data.frame()%>% # make a data.frame for each array with responding group. 
-  mutate(rownames(targets2)) %>%
-  `colnames<-`(c('group','filenames'))
-rownames(sampleinfo) <- sampleinfo$filenames
+### Gene ID change (from "SYMBOL" to "ENTREZID") to further using 'clusterProfiler'
+gpl_anno=read.table('GPL10787.txt', sep = "\t", quote = "\"",header = TRUE, fill = TRUE)  # read the annotation file for the GPL10787 platform (downloaded)
+head(gpl_anno)
+gpl_anno = gpl_anno %>% distinct(GENE_SYMBOL, .keep_all = TRUE ) # delete the repeat probe
+rownames(gpl_anno) = gpl_anno$GENE_SYMBOL
+
+### annotation for eset
+eset = eset[rownames(eset) %in% gpl_anno$GENE_SYMBOL,] #  delete the unmatched in eset
+dim(eset)
+gpl_anno = gpl_anno[gpl_anno$GENE_SYMBOL %in% rownames(eset),] #  delete the unmatched in annotation
+identical( gpl_anno$GENE_SYMBOL, rownames(eset)) #check the arrange of eset and annotation
+gpl_anno = gpl_anno[rownames(eset),] #  arrange 
+identical( gpl_anno$GENE_SYMBOL, rownames(eset)) #recheck
+eset2 = cbind(gpl_anno,eset)
+
+# remove batch effect, dont use
+#batch <- targets2$Batch
+#eset <- removeBatchEffect(eset, batch)
+#sampleinfo <- targets2$Target %>% as.data.frame()%>%
+#  mutate(rownames(targets2)) %>%
+#  `colnames<-`(c('group','filenames'))
+#rownames(sampleinfo) <- sampleinfo$filenames
 
 ### check the PCA of sample
 PCA <- prcomp(t(eset), scale = FALSE)
