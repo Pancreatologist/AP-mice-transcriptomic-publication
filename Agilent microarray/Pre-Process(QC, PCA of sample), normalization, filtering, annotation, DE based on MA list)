@@ -31,61 +31,58 @@ MA.reomoveCTprobe$genes$ProbeName %>% table() %>% sort(decreasing = TRUE) %>% he
 MA.reomoveCTprobe.average <- avereps(MA.reomoveCTprobe, ID = MA.reomoveCTprobe$genes$ProbeName) # take an average of probe
 
 ### For replicate gene in each sample, replace values with max one
-Amean <- rowMeans(MA.reomoveCTprobe.average$A)
+Amean <- rowMeans(MA.reomoveCTprobe$A)
 o <- order(Amean, decreasing=TRUE)
-MA.reomoveCTprobe.average <- MA.reomoveCTprobe.average[o,]
-dup <- duplicated(MA.reomoveCTprobe.average$genes$GeneName)
-MA.reomoveCTprobe.average <- MA.reomoveCTprobe.average[!dup]
+MA.reomoveCTprobe <- MA.reomoveCTprobe[o,]
+dup <- duplicated(MA.reomoveCTprobe$genes$GeneName)
+MA.reomoveCTprobe <- MA.reomoveCTprobe[!dup,] 
 
-###annotation gene names and filter no significance probe 
-Annotationname = MA.reomoveCTprobe.average$genes %>% 
+### annotation gene names and filter no significance probe
+Annotationname = MA.reomoveCTprobe$genes %>% 
   filter( !grepl( "Unknown", Description ) ) %>% #there are many genes with Description 'unknown' 
   filter( !grepl( "^chr", GeneName ) ) # there are many gene names begin with 'chr'
-rownames(Annotationname) <- Annotationname$GeneName 
-#it has the gene name, Gordon Smyth also said that a few duplicate gene symbols cause no problems so it is generally best to simply keep all the probes in the DE analysis
-#https://www.biostars.org/p/484527/#486185, so for the DE analyze visa MA.list i annotated them after DE, but i annotation before DE analyze of eset following your suggestion
-
-### remove batch effect, which may only do it for edata?
-#batch = target$Batch
-#MA.reomoveCTprobe.average.withoutBatch <- ComBat(MA.reomoveCTprobe.average, batch,BPPARAM = bpparam("SerialParam")) #Combat will get a matrix of array which may
-                                                                                                                      not suitable for MA.list analyze.
-
+rownames(Annotationname) <- Annotationname$GeneName
 
 ### Array Quality Weights
-arrayw <- arrayWeights(MA.reomoveCTprobe.average.withoutBatch)
-barplot(arrayw, xlab="Array", ylab="Weight", col="white", las=2) #there is one array with too much high Weight which may not be verified so i removed this array.
+arrayw <- arrayWeights(MA.reomoveCTprobe)
+barplot(arrayw, xlab="Array", ylab="Weight", col="white", las=2)
 abline(h=1, lwd=1, lty=2)
+w <- matvec(MA.reomoveCTprobe$weights,aw)
 
-### analyze from MA list #in this way, i only can do it up to DEG via topTable function
+### analyze from MA list #in this way, i only can do it up to DEG via topTable function 
 targets2 <- targetsA2C(target)
 u <- unique(targets2$Target)
 f <- factor(targets2$Target, levels=u)
 design <- model.matrix(~0+f) #make the design with each color of total sample
-#design <-  model.matrix(~f+targets2$Batch) #there is the information of batch on the target, but when i added the batch, it doesnt work, it will added a col with Batch
-                                             and it will make the design matrix not suitable for the MA.list.
 colnames(design) <- u
 rownames(design) <- rownames(targets2)
-corfit <- intraspotCorrelation(MA.reomoveCTprobe.average, design)
-fit <- lmscFit(MA.reomoveCTprobe.average, design, correlation=corfit$consensus) # this is very important thing that i'm not sure. As i include all the array, 
-                                                                                # but only choose part of them to make cont.matrix. Is it approprate to lmscFit it?
-                                                                                # As limma package suggest, i choose 'lmscFit' instead of 'lmfit' which i also dont know
-                                                                                # whether it is correct or not?
+corfit <- intraspotCorrelation(MA.reomoveCTprobe, design)
+fit <- lmscFit(MA.reomoveCTprobe, design,correlation=corfit$consensus)
+
 cont.matrix <- makeContrasts("wt.SC7-wt.C7","wt.SC7-wt.Control2","wt.C7-wt.Control2", levels=design)
 fit2 <- contrasts.fit(fit, cont.matrix)
 fit2 <- eBayes(fit2)
-volcanoplot(fit2)
 topTable(fit2, coef=1, adjust="BH")
-summary(topTable(fit2))
-results <- decideTests(fit2)
-vennDiagram(results)
-glimmaVolcano(fit2, # glimmaVolcano, in glimma package, was used to do a Volcano plot for MA.list. But i dont know how to do it together. I just to know how to do it one by one via this code.
+volcanoplot(fit2)
+topTable(fit2)
+glimmaVolcano(fit2)
+glimmaVolcano(fit2,
   main = 'wt.SC7-wt.C7',
   xlab = "logFC",
   ylab = "negLog10PValue",
   html = NULL,
   width = 920,
-  height = 920) # adjP was default as 'BH'
-volcanoplot (fit2) # volcanoplot is also success
+  height = 920)
+degs_temp <- topTable(fit2,coef=1, adjust="BH", n = Inf)%>%na.omit
+logFC_cut = with(degs_temp, mean(abs(logFC))+2*sd(abs(logFC))) # take 95% CI for logFC
+degs_temp = degs_temp %>%
+  mutate( DEG = factor( ifelse( abs(degs_temp$logFC) > logFC_cut & degs_temp$adj.P.Val < 0.05,
+                                ifelse(degs_temp$logFC > 0, 'up','down'),
+                                'ns' ), 
+                        levels = c("up", "ns", "down" ), ordered = F ) )%>%
+  mutate( row = rownames(degs_temp))
+results <- decideTests(fit2)
+vennDiagram(results)
 
 
 
