@@ -19,8 +19,8 @@ RG.bgcorrect <- backgroundCorrect(RG, method = 'normexp', offset = 16) #offset m
 #plotMD(RG.bgcorrect.norm)
 
 ### Normalize the data between arrays 
-MA <- normalizeBetweenArrays(RG.bgcorrect.norm, method = "Aquantile")
-plotDensities(RG.bgcorrect.norm)#check the signal density map
+MA <- normalizeBetweenArrays(RG.bgcorrect, method = "Aquantile")
+plotDensities(RG.bgcorrect)#check the signal density map
 plotDensities(MA)
 MA$genes$ControlType %>% unique() #include what category of probe
 
