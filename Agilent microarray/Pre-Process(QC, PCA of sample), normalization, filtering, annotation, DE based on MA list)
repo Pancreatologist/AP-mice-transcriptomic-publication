@@ -14,9 +14,9 @@ imageplot(log2(RG$Gb[,1]),RG$printer)
 ### Perform background correction on the fluorescent intensities
 RG.bgcorrect <- backgroundCorrect(RG, method = 'normexp', offset = 16) #offset may depend on the number of sample (25%-50%)
 
-### Normalize the data in array with the 'loess' method
-RG.bgcorrect.norm <- normalizeWithinArrays(RG.bgcorrect, method = 'loess')
-plotMD(RG.bgcorrect.norm)
+### Normalize the data in array with the 'loess' method,should not do as Anthony suggested.
+#RG.bgcorrect.norm <- normalizeWithinArrays(RG.bgcorrect, method = 'loess')
+#plotMD(RG.bgcorrect.norm)
 
 ### Normalize the data between arrays 
 MA <- normalizeBetweenArrays(RG.bgcorrect.norm, method = "Aquantile")
@@ -30,11 +30,12 @@ MA.reomoveCTprobe <- MA[keepProbe,] #remove the control probe
 MA.reomoveCTprobe$genes$ProbeName %>% table() %>% sort(decreasing = TRUE) %>% head(n = 3) 
 MA.reomoveCTprobe.average <- avereps(MA.reomoveCTprobe, ID = MA.reomoveCTprobe$genes$ProbeName) # take an average of probe
 
-### For replicate probes in each sample, replace values with the average
-MA.reomoveCTprobe.average <- avereps(
-  MA.reomoveCTprobe,
-  ID = MA.reomoveCTprobe$genes$ProbeName)
-MA.reomoveCTprobe.average$targets
+### For replicate gene in each sample, replace values with max one
+Amean <- rowMeans(MA.reomoveCTprobe.average$A)
+o <- order(Amean, decreasing=TRUE)
+MA.reomoveCTprobe.average <- MA.reomoveCTprobe.average[o,]
+dup <- duplicated(MA.reomoveCTprobe.average$genes$GeneName)
+MA.reomoveCTprobe.average <- MA.reomoveCTprobe.average[!dup]
 
 ###annotation gene names and filter no significance probe 
 Annotationname = MA.reomoveCTprobe.average$genes %>% 
