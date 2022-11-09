@@ -14,13 +14,13 @@ imageplot(log2(RG$Gb[,1]),RG$printer)
 ### Perform background correction on the fluorescent intensities
 RG.bgcorrect <- backgroundCorrect(RG, method = 'normexp', offset = 16) #offset may depend on the number of sample (25%-50%)
 
-### Normalize the data in array with the 'loess' method,should not do as Anthony suggested.
-#RG.bgcorrect.norm <- normalizeWithinArrays(RG.bgcorrect, method = 'loess')
-#plotMD(RG.bgcorrect.norm)
+### Normalize the data in array with the 'loess' method
+RG.bgcorrect.norm <- normalizeWithinArrays(RG.bgcorrect, method = 'loess')
+plotMD(RG.bgcorrect.norm)
 
 ### Normalize the data between arrays 
-MA <- normalizeBetweenArrays(RG.bgcorrect, method = "Aquantile")
-plotDensities(RG.bgcorrect)#check the signal density map
+MA <- normalizeBetweenArrays(RG.bgcorrect.norm, method = "Aquantile")
+plotDensities(RG.bgcorrect.norm)#check the signal density map
 plotDensities(MA)
 MA$genes$ControlType %>% unique() #include what category of probe
 
