@@ -4,7 +4,10 @@ targets2 <- targetsA2C(target)
 eset = exprs.MA(MA.reomoveCTprobe.average) #get the expression from MA. In the guide, I think it will from aCY3, aCy5, bCy3, bCy5...... So it may be arranged as targets2 list? 
 colnames(eset) <- rownames(targets2) # If it arranged correctly, this code may be right. But if it doesnt arranged as targets, this is the thing i dont sure.
 rownames(eset) <- MA.reomoveCTprobe.average$genes$GeneName #make the rowname to the genenames from the rawdata
+plot(MA.reomoveCTprobe$A)
+plot(eset)
 eset <- eset[row.names(eset) %in% row.names(Annotationname), ] #filter eset to only mRNA based on filter genes which i do it in the pre-process(excluding some begining with 'chr')
+
 
 ### Gene ID change (from "SYMBOL" to "ENTREZID") to further using 'clusterProfiler'
 gpl_anno=read.table('GPL10787.txt', sep = "\t", quote = "\"",header = TRUE, fill = TRUE)  # read the annotation file for the GPL10787 platform (downloaded)
@@ -21,13 +24,15 @@ gpl_anno = gpl_anno[rownames(eset),] #  arrange
 identical( gpl_anno$GENE_SYMBOL, rownames(eset)) #recheck
 eset2 = cbind(gpl_anno,eset)
 
-# remove batch effect, dont use
+### remove batch effect, dont use
 #batch <- targets2$Batch
 #eset <- removeBatchEffect(eset, batch)
-#sampleinfo <- targets2$Target %>% as.data.frame()%>%
-#  mutate(rownames(targets2)) %>%
-#  `colnames<-`(c('group','filenames'))
-#rownames(sampleinfo) <- sampleinfo$filenames
+
+### make the sampleinfo
+sampleinfo <- targets2$Target %>% as.data.frame()%>%
+  mutate(rownames(targets2)) %>%
+  `colnames<-`(c('group','filenames'))
+rownames(sampleinfo) <- sampleinfo$filenames
 
 ### check the PCA of sample
 PCA <- prcomp(t(eset), scale = FALSE)
@@ -37,42 +42,62 @@ dataGG <- data.frame(PC1 = PCA$x[,1], PC2 = PCA$x[,2],
                      Model =
                        targets2$Target)
 ggplot(dataGG, aes(PC1, PC2)) +
-  geom_point(aes(shape = Model)) +
+  #geom_point(aes(shape = Model)) +
+  geom_point(aes(colour = Model)) +
   ggtitle("PCA (cluster experimental groups)") +
   xlab(paste0("PC1, VarExp: ", percentVar[1], "%")) +
   ylab(paste0("PC2, VarExp: ", percentVar[2], "%")) +
   theme(plot.title = element_text(hjust = 0.5)) +
   coord_fixed(ratio = sd_ratio) +
-  scale_shape_manual(values = c(1:12)) # this value will depended on the total group number
-  
+  #scale_shape_manual(values = c(1:5))
+  scale_colour_manual(values = c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff', '#000000','#CCFFFF', '#CCFFCC',	'#CCFF99','#CCFF66','#CCFF33','#CCFF00')) 
+
 ### DEG
 ### firstly check the PCA of each comtrast, because total PCA may difficult to see the detail of subgroups 
-eset_new = eset[, targets2$Target %in% c('wt.C7','wt.SC7','wt.Control') ] # choose the target col which filename cooresponding to group in target
-sampleinfonew <- sampleinfo[sampleinfo$group%in%c('wt.C7','wt.SC7','wt.Control'),] 
-pca.info <- fast.prcomp(eset_new)
-pcadata <- data.frame(sample = rownames(pca.info$rotation),Type = c(rep('wt.C7plus6',6),rep('wt.SC7plus6',6),rep('wt.Control',12)),pca.info$rotation)
-ggscatter(pcadata,x = 'PC1',y = 'PC2',
-          color = 'Type',
-          ellipse = TRUE, #make a sepration between two group or add # ellipse.type = 'convex',
-          size =4, 
-          main = 'PCA plot') 
-boxplot(eset_new) # check the expr normal or not
+x <- c("TLCS","SC")# choose the target col which filename cooresponding to group in target
+eset_new = eset[, targets2$Target %in% x ] 
+sampleinfonew <- sampleinfo[sampleinfo$group%in%x,]
+PCA <- prcomp(t(eset_new), scale = FALSE)
+percentVar <- round(100*PCA$sdev^2/sum(PCA$sdev^2),1)
+sd_ratio <- sqrt(percentVar[2] / percentVar[1])
+dataGG <- data.frame(PC1 = PCA$x[,1], PC2 = PCA$x[,2],
+                     Model =
+                       sampleinfonew$group)
+ggplot(dataGG, aes(PC1, PC2)) +
+  geom_point(aes(colour = Model)) +
+  ggtitle("PCA (cluster experimental groups)") +
+  xlab(paste0("PC1, VarExp: ", percentVar[1], "%")) +
+  ylab(paste0("PC2, VarExp: ", percentVar[2], "%")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_fixed(ratio = sd_ratio) +
+  scale_shape_manual(values = c(1:6))
+
+### correlation between samples
+r <- cor(eset_new,method = "pearson") # methods have "pearson", "spearman", "kendall"
+pheatmap(r, 
+         show_colnames = TRUE,   
+         show_rownames=TRUE,     
+         fontsize=5,             
+         color = colorRampPalette(c('#0000ff','#ffffff','#ff0000'))(50), 
+         annotation_legend=TRUE, 
+         border_color=NA,        
+         scale="none",           
+         cluster_rows = TRUE,    
+         cluster_cols = TRUE)
 
 ### make contrast for DEG
 u <- unique(targets2$Target)
 f <- factor(targets2$Target, levels=u)
+Batch <- targets2$Batch
 design <- model.matrix(~0+f) #make the design with each color of total sample
 colnames(design) <- u
 rownames(design) <- rownames(targets2)
-contrastdesign <- design[ ,c('wt.C7','wt.SC7','wt.Control')] 
-contrastdesign <-  contrastdesign[sampleinfo$group%in%c("wt.SC7plus6","wt.C7plus6","wt.Control"),] #make a design for the eset_new
-cont.matrix <- makeContrasts(wt.C7vswt.SC7=wt.C7-wt.SC7,levels=design)
-
-fit2 <- lmFit(eset_new, contrastdesign) %>% # Fit linear model
+cont.matrix <- makeContrasts(wt.Control-wt.ControlREHY,wt.Control-wtControl,wtControl-wt.ControlREHY,levels=design) #it will be based on what need to contrast 
+fit2 <- lmFit(eset, design) %>% # Fit linear model
   contrasts.fit( cont.matrix ) %>% # compute estimated coefficients and standard errors for a given set of contrasts
   eBayes # compute moderated t-statistics, moderated F-statistic, and log-odds of differential expression
 results <- decideTests(fit2)
-vennDiagram(results) # do a venn for the DE in three contrast
+vennDiagram(results)
 
 degs_temp <- topTable(fit2,coef=1, adjust="BH", n = Inf)%>%na.omit # get the detail of different DE
 logFC_cut = with(degs_temp, mean(abs(logFC))+2*sd(abs(logFC))) # get a 95%CI for logFC
@@ -88,7 +113,7 @@ table(degs_temp$DEG) #to see the number of up and down genes
 
 
 ### volcano plot 
-#first choice
+#first choice for volcano plot
 p1 <- gradual_volcano(degs_temp, x = "logFC", y = "P.Value", # because adjP plot may unsatisfied, so i plot it with P-value.
                       fills = brewer.pal(5, "RdYlBu"),
                       colors = brewer.pal(8, "RdYlBu"),
@@ -99,7 +124,7 @@ p1 <- gradual_volcano(degs_temp, x = "logFC", y = "P.Value", # because adjP plot
                       label = "row", label_number = 10, output = FALSE) # with 10 genes with names
 p1 
 save(degs_temp, file = paste('wt.C7plus6-wt.SC7plus6','.Rdata',sep = ""))
-
+#second choice for volcano plot
 degs_temp$label <- c(rownames(degs_temp)[1:10],rep(NA,(nrow(degs_temp)-10))) #get the label need to clear
 p1 <- ggplot(degs_temp,aes(logFC, -log10(adj.P.Val)))+
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "#999999")+
@@ -119,7 +144,7 @@ p1 <- ggplot(degs_temp,aes(logFC, -log10(adj.P.Val)))+
   xlab("Log2FC")+
   ylab("-Log10(FDR q-value)")    # 修改坐标轴：
 
-###heat map for degs
+###heatmap for DEG validation
 chs_x = degs_temp %>%
   slice_max( abs(logFC), n = 50 ) 
 heat_matrix <- eset_new [row.names(eset_new) %in% row.names(chs_x), ] 
