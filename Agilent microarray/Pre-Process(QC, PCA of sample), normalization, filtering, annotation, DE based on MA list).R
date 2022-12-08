@@ -1,5 +1,8 @@
 ###Read in and normalise data
-target <- readTargets("CER.txt" ) #import all the CER group and control group, including 4, 7, 12 injections. I just change the contrast matrix for the different comparation.
+target <- readTargets("finalFAEETLCS.txt" ) 
+target <- readTargets("finaltargetCER.txt" ) 
+target <- readTargets("badarray.txt" ) # the faee and tlcs model
+target <- readTargets("CERdose.txt" ) #
 rownames(target) <- removeExt(target$FileName)
 target
 RG <- read.maimages(target, source ="agilent") #read files, as two-color array
@@ -10,6 +13,10 @@ plotMD(RG)
 boxplot(data.frame(log2(RG$Gb)),main="Green background") #quality characteristics of each array
 boxplot(data.frame(log2(RG$Rb)),main="Red background")
 imageplot(log2(RG$Gb[,1]),RG$printer)
+table(RG$genes$ControlType)
+imageplot(log2(RG$Rb[,1]), RG$printer, low="white", high="red")
+positive <- RG$genes$ControlType %in% '1'
+RG <- RG[!positive,] # All positive control probes were filtered before background correction and normalization.
 
 ### Perform background correction on the fluorescent intensities
 RG.bgcorrect <- backgroundCorrect(RG, method = 'normexp', offset = 25) #offset may depend on the number of sample (25%-50%)
@@ -25,10 +32,14 @@ plotDensities(MA)
 MA$genes$ControlType %>% unique() #include what category of probe
 
 ### remove the control probe
+negative <- MA$genes$ControlType %in% '-1'
+a <- MA[negative,]
+quantile(a$A)
 keepProbe <- MA$genes$ControlType == 0
 MA.reomoveCTprobe <- MA[keepProbe,] #remove the control probe
 MA.reomoveCTprobe$genes$ProbeName %>% table() %>% sort(decreasing = TRUE) %>% head(n = 3) 
 MA.reomoveCTprobe.average <- avereps(MA.reomoveCTprobe, ID = MA.reomoveCTprobe$genes$ProbeName) # take an average of probe
+IsExpr <- rowSums(MA.reomoveCTprobe$A > 0) >= 5.913736;table(IsExpr) # there is no genes less than 75% Negetive genes
 
 ### For replicate gene in each sample, replace values with max one
 Amean <- rowMeans(MA.reomoveCTprobe$A)
@@ -51,6 +62,23 @@ w <- matvec(MA.reomoveCTprobe$weights,aw)
 
 ### analyze from MA list #in this way, i only can do it up to DEG via topTable function 
 targets2 <- targetsA2C(target)
+
+targets2 <- targets2 %>% 
+  mutate(modelgroup=ifelse(grepl('Control',targets2$Target),'Control', ifelse(grepl('SalineFAEE',targets2$Target), 'SalineFAEE',
+                                                                              ifelse(grepl('SalineTLCS',targets2$Target),'SalineTLCS',
+                                                                                     ifelse(grepl('SC',targets2$Target),'SalineCER',
+                                                                                            ifelse(grepl('Control',targets2$Target),'Control', 
+                                                                                                   ifelse(grepl('TLCS',targets2$Target),'TLCS',
+                                                                                                          ifelse(grepl('POAFAEE',targets2$Target),'POAFAEE','CER'))))))))%>% 
+  mutate(knockout=ifelse(grepl('ppif',targets2$Target), 'ppif', 'wt'))%>% 
+  mutate(rehybridised=ifelse(grepl('8',targets2$Batch), 'badarray', 'normal'))%>%
+  mutate(rowname=rownames(targets2))%>%
+  mutate(SCcombin = case_when(str_detect(targets2$Target,'wt.SC4plus9')~ 'SC',
+                              str_detect(targets2$Target,'wt.SC7plus6')~ 'SC',
+                              str_detect(targets2$Target,'wt.C7plus6')~ 'C',
+                              str_detect(targets2$Target,'wt.C4plus9')~ 'C',
+                              TRUE ~ targets2$Target))
+
 u <- unique(targets2$Target)
 f <- factor(targets2$Target, levels=u)
 design <- model.matrix(~0+f) #make the design with each color of total sample
@@ -60,6 +88,25 @@ corfit <- intraspotCorrelation(MA.reomoveCTprobe, design)
 fit <- lmscFit(MA.reomoveCTprobe, design,correlation=corfit$consensus)
 
 cont.matrix <- makeContrasts("wt.SC7-wt.C7","wt.SC7-wt.Control2","wt.C7-wt.Control2", levels=design)
+
+### for 3 model
+cont.matrix <- makeContrasts("wtTLCS-wtControl","wtSalineTLCS-wtControl", 'wtTLCS-wtSalineTLCS',levels=design)
+cont.matrix <- makeContrasts("wtPOAFAEE-wtControl","wtSalineFAEE-wtControl", 'wtPOAFAEE-wtSalineFAEE',levels=design)
+cont.matrix <- makeContrasts("wt.C7rep-wt.Controlrep","wt.SC7rep-wt.Controlrep", 'wt.C7rep-wt.SC7rep',levels=design)
+### for different dose of CER
+cont.matrix <- makeContrasts('wt.C7-wt.Control', 'wt.SC7-wt.Control','wt.C7-wt.SC7',levels=design)
+cont.matrix <- makeContrasts('wt.C7plus6-wt.Control', 'wt.SC7plus6-wt.Control','wt.C7plus6-wt.SC7plus6',levels=design)
+cont.matrix <- makeContrasts('wt.C4plus9-wt.Control', 'wt.SC4plus9-wt.Control','wt.C4plus9-wt.SC4plus9',levels=design)
+cont.matrix <- makeContrasts('wt.SC7plus6-wt.SC7', 'wt.SC4plus9-wt.SC7','wt.SC7plus6-wt.SC4plus9',levels=design)
+cont.matrix <- makeContrasts('wt.C7plus6-wt.C7', 'wt.C4plus9-wt.C7','wt.C7plus6-wt.C4plus9',levels=design)
+cont.matrix <- makeContrasts('wt.C7rep-wt.SC7rep',levels=design)
+### for bad array (FAEE+TLCS)
+cont.matrix <- makeContrasts('wtSalineInj-wtControl','wtEtOH-wtSalineInj','wtEtOH-wtControl',levels=design)
+cont.matrix <- makeContrasts('wtFAEE150-wtControl', 'wtFAEE150-wtSalineInj','wtFAEE150-wtEtOH',levels=design)
+cont.matrix <- makeContrasts('wtFAEE50-wtControl','wtFAEE50-wtSalineInj','wtFAEE50-wtEtOH',levels=design)
+cont.matrix <- makeContrasts('wtFAEE150-wtFAEE50',levels=design)
+cont.matrix <- makeContrasts('wtTLCS5-wtControl', 'wtTLCS3-wtControl','wtSalinePerf-wtControl','wtTLCS5-wtSalinePerf', 'wtTLCS3-wtSalinePerf',levels=design)
+
 fit2 <- contrasts.fit(fit, cont.matrix)
 fit2 <- eBayes(fit2)
 results <- decideTests(fit2)
@@ -75,6 +122,8 @@ degs_temp = degs_temp %>%
                                 'ns' ), 
                         levels = c("up", "ns", "down" ), ordered = F ) )%>%
   mutate( row = rownames(degs_temp))
+
+
 
 ###heatmap for DEG validation
 chs_x = degs_temp %>%
