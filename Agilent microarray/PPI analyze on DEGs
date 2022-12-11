@@ -1,0 +1,66 @@
+######################### 选择STRINGdb类型 #########################
+string_db <- STRINGdb$new( version="11.5", #数据库版本。截止2022.5.24最新为11.5
+                           species=10090,   #人9606，小鼠10090 
+                           score_threshold=700, #蛋白互作的得分 默认400, 低150，高700，极高900
+                           input_directory="") #可自己导入数据
+########################## 获取DEG结果 ############################
+##  筛选条件设置 
+log2FC_cutoff = log2(2)
+pvalue_cutoff = 0.05
+padj_cutoff = 0.05
+## 选择DEG
+head(degs_temp)
+need_deg <- degs_temp[,c('logFC','P.Value','adj.P.Val')] ; head(need_deg) 
+colnames(need_deg) <- c('log2FC','pvalue','padj'); head(need_deg)
+need_deg$gene <- rownames(need_deg); head(need_deg)      #gene symbol或ENTREZID都可
+if(T){  
+  gene_up=need_deg[with(need_deg,log2FC>log2FC_cutoff & pvalue<pvalue_cutoff & padj<padj_cutoff),]
+  gene_down=need_deg[with(need_deg,log2FC < -log2FC_cutoff & pvalue<pvalue_cutoff & padj<padj_cutoff),]
+  gene_diff=need_deg[with(need_deg,abs(log2FC)>log2FC_cutoff & pvalue<pvalue_cutoff & padj<padj_cutoff),]
+}
+dim(gene_up);dim(gene_down);dim(gene_diff)
+dat <- gene_diff[c(1:300),] ##这里选取前100显著基因用于后续分析
+write.table(rownames(dat),'gene_diff300.txt',row.names = F,col.names = F,quote = F) #字符不要带引号 
+dat_map <- string_db$map(my_data_frame=dat, 
+                         my_data_frame_id_col_names="gene", #使用gene symbol或ENTREZID都可
+                         removeUnmappedRows = TRUE )
+hits <- dat_map$STRING_id 
+
+## PPI
+png("string_PPI 300 of DEGs.png",units="in",width = 10,height = 10, res=400)
+string_db$plot_network(hits)
+dev.off()
+## PPI_halo  #给PPI添加上下调信息
+# filter by p-value and add a color column(i.e.green for down and red for up genes)
+dat_map_color <- string_db$add_diff_exp_color(subset(dat_map, pvalue<0.01),
+                                              logFcColStr="log2FC" )
+payload_id <- string_db$post_payload(dat_map_color$STRING_id,
+                                     colors=dat_map_color$color)
+png("string_PPI_halo 300.png",units="in",width = 10,height = 10, res=400)
+string_db$plot_network(hits, payload_id=payload_id )
+dev.off()
+## iGraph clustering 互作网络分簇
+#algorithm: fastgreedy(默认), walktrap, edge.betweenness
+clustersList <- string_db$get_clusters(string_ids = hits ,
+                                       algorithm  = "fastgreedy" ) 
+# plot first 6 clusters.
+png("string_PPI_iGraph_cluster300.png",units="in",width = 15,height = 10,res=400)
+par(mfrow=c(2,3))
+for(i in 1:6){
+  string_db$plot_network(clustersList[[i]])
+}
+dev.off()
+
+#category: All, Process, Component, Function, Keyword, KEGG, RCTM, Pfam, SMART, InterPro
+enrichment <- string_db$get_enrichment(string_ids = hits,
+                                       category   = "Process" ) 
+write.csv(enrichment,"enrichment_GO_BP.csv")
+dat_link <- string_db$get_interactions(hits)
+# 转换stringID为 gene symbol
+dat_link$from <- dat_map[match(dat_link$from,dat_map$STRING_id),'gene']
+dat_link$to <- dat_map[match(dat_link$to,dat_map$STRING_id),'gene']  
+colnames(dat_link) <- c('node1','node2','combined_score')
+# 去除重复
+dat_link <- dat_link %>% distinct(node1, node2, .keep_all = T)
+
+write.csv(dat_link,'string_link300.csv',row.names = F,quote = F)
