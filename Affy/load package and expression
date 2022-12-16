@@ -1,27 +1,3 @@
-# First off, it's a good idea to have all your library() calls in one place at the start.
-# This makes any errors from not having a package installed appear quickly, when you run the script.
-library(BiocManager)
-library(affy)
-library(here)
-library(tidyverse) # ggplot2 stringer dplyr tidyr readr purrr  tibble forcats
-library(ggsci)
-library(limma)
-library(ggfortify)
-library(ggplot2)
-library(ggsci)
-library(pheatmap)
-library(ggplotify) # make the pheatmap adpat to ggplot2 
-library(dplyr)
-library(AnnoProbe)
-library(hgu133plus2.db)
-library(clusterProfiler)
-library(enrichplot) 
-library(DOSE)
-library(randomForest)
-library(ROCR)
-library(STRINGdb) 
-library(igraph)
-library(magrittr)
 ###  set work dictionary, read files, do RMA and take the expression
 library(here)
 dir_cels='C:\\Users\\wudi\\Desktop\\Di Wu project\\msap+sap vs map\\Human AP Affymetrix Arrays\\cel_files'
