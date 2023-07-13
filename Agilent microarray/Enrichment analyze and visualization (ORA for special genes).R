@@ -23,35 +23,22 @@ ego <- enrichGO(gene          = gene$ENTREZID,
   pairwise_termsim() # for the further emap 
 
 
-
-#Chord plot
-enrichgo <- DOSE::setReadable(ego, OrgDb='org.Mm.eg.db',keyType='ENTREZID')
-GO <- enrichgo@result[1:10,c('Description','qvalue','geneID')] #choose the top 10 pathways
-tmp=do.call(rbind,
-            apply(GO, 1,function(x){
-              data.frame(go=x[1],
-                         gene=strsplit(x[3],'/')[[1]])
-            })
-)
-tmp2=dcast(tmp,go~gene)
-tmp2[is.na(tmp2)]=0
-rownames(tmp2)=tmp2[,1]
-tmp2=tmp2[,-1]
-tmp2=t(tmp2)
-tmp2[tmp2!=0]=1
-tmp2=as.data.frame(tmp2)
-table(rownames(degs_temp[rownames(tmp2),]) == rownames(tmp2))
-cg=rownames(tmp2)
-tmp2=apply(tmp2,2,as.numeric)
-rownames(tmp2)=cg
-cor_mat <- cor(tmp2) 
-col_mat <- rand_color(nrow(cor_mat), transparency = 0.3) 
-#col_fun <- colorRamp2(c(-1, 0, 1),c("#42d4f4", "white", "#e6194B"))
-chordDiagram(cor_mat, link.sort = TRUE, link.decreasing = TRUE, grid.col = col_mat,#directional = 1,
-             transparency = 0.3,
-             annotationTrack = c("grid"),
-             symmetric = TRUE)
-circos.clear()
-
+### visualization
+ego <- ego %>% as.data.frame() %>% 
+  mutate(richFactor = Count / as.numeric(sub("/\\d+", "", BgRatio)))
+ego$Description
+ggplot(ego[1:5,], #c(4,7,10,9,12)
+       aes(richFactor, fct_reorder(Description, richFactor))) + 
+  geom_segment(aes(xend=0, yend = Description)) +
+  geom_point(aes(color=p.adjust, size = Count)) +
+    scale_fill_manual(values = as.vector(palette.colors()))+  
+  #scale_color_viridis_c(guide=guide_colorbar(reverse=TRUE)) +
+  scale_size_continuous(range=c(2, 10)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 40) )+
+  scale_x_continuous(expand = expansion(c(0, 0.1)))+
+  background_grid(major = "y", minor = "y")+
+  theme_cowplot(20) + 
+  xlab("rich factor") + ylab("Terms") +
+  ggtitle("ORA for GO")
 
 
