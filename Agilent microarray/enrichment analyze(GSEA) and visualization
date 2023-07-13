@@ -73,7 +73,42 @@ adaptive <- c('antigen processing and presentation of exogenous peptide antigen 
               'B cell activation','B cell differentiation')
 all <- c(innate,adaptive)
 filtered_rows <- ego2[ego2$Description %in% all,c('Description','NES')]
-write.csv(filtered_rows, file = "filtered_data.csv", row.names = FALSE)
+write.csv(filtered_rows, file = "filtered_data.csv", row.names = FALSE)#make the summarized result
+heatmatrix_long <- read.delim2('GSEAheatmap.txt')#read from the summarized result
+heatmatrix_long <- as_tibble(heatmatrix_long)
+heatmatrix_long$NES <- as.numeric(heatmatrix_long$NES)
+heatmatrix_long
+innate <- c('neutrophil migration','neutrophil activation','myeloid leukocyte activation','leukocyte migration','leukocyte cell-cell adhesion',
+            'leukocyte aggregation','myeloid leukocyte cytokine production','regulation of leukocyte proliferation','neutrophil chemotaxis','granulocyte activation',
+            'granulocyte chemotaxis','granulocyte migration','tumor necrosis factor superfamily cytokine production','tumor necrosis factor production')
+adaptive <- c('antigen processing and presentation of exogenous peptide antigen via MHC class II','antigen processing and presentation of peptide antigen via MHC class II',
+              'B cell mediated immunity','T cell receptor signaling pathway','T cell mediated immunity','regulation of B cell activation',
+              'B cell receptor signaling pathway','B cell activation involved in immune response','regulation of T cell activation',
+              'B cell activation','B cell differentiation')
+heatmatrix_long_groupings = 
+  heatmatrix_long |>
+  mutate(Variable_group = if_else(Group %in% c("C7plus6", "TLCS3",'FAEE150'), "M",'S'))|>
+  mutate(immune = if_else(Description %in% innate, "innate",'adaptive'))
+heatmatrix_long_groupings$Variable_group <- factor(heatmatrix_long_groupings$Variable_group, levels = c( "M",'S'))
+heatmatrix_long_groupings$Description <- factor(heatmatrix_long_groupings$Description,levels = c(innate,adaptive))
+
+
+heatmatrix_long_groupings$Group <- factor(heatmatrix_long_groupings$Group, levels = c('C7plus6','TLCS3','FAEE150', 'CER','TLCS','FAEE'
+))
+heatmatrix_long_groupings
+heatmatrix_long_groupings|> 
+  group_by(Variable_group,immune) |>
+  heatmap(Description,Group, NES,na_col = "#F5F4F0",rect_gp = gpar(col="black"),
+          palette_value = circlize::colorRamp2(c(-2,0,2), c("#5B7493", "#BFBFC1","#E7ADAC")),
+          cluster_col = FALSE,cluster_rows = F,
+          palette_grouping = list(
+            # For first grouping (vs)
+            c("#66C2A5", "#FC8D62"), 
+            # For second grouping (property_group)
+            c("#b58b4c","#74a6aa")
+          )
+  ) |> 
+  save_pdf("GSEA_heatmap.pdf")
 
 
 
