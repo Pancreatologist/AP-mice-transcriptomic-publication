@@ -1,0 +1,79 @@
+###gseaGO
+alldiff <- degs_temp[order(degs_temp$logFC,decreasing = T),]
+genelist <- alldiff$logFC
+names(genelist) <- alldiff$ENTREZID
+ego2 <- gseGO(geneList = genelist,
+              ont = 'BP',
+              OrgDb = org.Mm.eg.db,
+              pvalueCutoff = 0.05,
+              pAdjustMethod = "BH",
+              minGSSize = 15,
+              maxGSSize = 500,
+              seed = FALSE,
+              by = "fgsea",
+              keyType = "ENTREZID") %>% 
+  DOSE::setReadable(OrgDb='org.Mm.eg.db',keyType='ENTREZID')
+#ego2 <- simplify(ego2,  cutoff = 0.7,
+#                 by = "p.adjust",
+#                 select_fun = min,
+#                 measure = "Wang",
+#                 semData = NULL)
+ego2 <- ego2 %>% as.data.frame()
+ego2$Description
+
+
+###chord plot
+enrichgo <- DOSE::setReadable(ego2, OrgDb='org.Mm.eg.db',keyType='ENTREZID')
+#GO <- enrichgo@result[1:10,c('Description','qvalue','geneID')] 
+GO <- enrichgo@result[1:10,c('Description','qvalue','core_enrichment')] 
+tmp=do.call(rbind,
+            apply(GO, 1,function(x){
+              data.frame(go=x[1],
+                         gene=strsplit(x[3],'/')[[1]])
+            })
+)
+tmp2=dcast(tmp,go~gene)
+tmp2[is.na(tmp2)]=0
+rownames(tmp2)=tmp2[,1]
+tmp2=tmp2[,-1]
+tmp2=t(tmp2)
+tmp2[tmp2!=0]=1
+tmp2=as.data.frame(tmp2)
+table(rownames(degs_temp[rownames(tmp2),]) == rownames(tmp2))
+cg=rownames(tmp2)
+tmp2=apply(tmp2,2,as.numeric)
+rownames(tmp2)=cg
+cor_mat <- cor(tmp2)
+col_mat <- rand_color(10, transparency = 0.4) 
+#col_fun <- colorRamp2(c(-1, 0, 1),c("#42d4f4", "white", "#e6194B"))
+chordDiagram(cor_mat, link.sort = TRUE, link.decreasing = TRUE, grid.col = col_mat,#directional = 1,
+             transparency = 0.3,
+             annotationTrack = c("name","grid"),
+             symmetric = TRUE)
+circos.clear()
+
+### GSEA plot
+ego2@result[grepl('B cell|MHC|tumor necrosis factor production|neutrophil migration|myeloid leukocyte activation',ego2@result$Description),c('NES','ID','Description','p.adjust')]
+terms <- c('GO:0019724',
+           'GO:1990266',
+           'GO:0032680',
+           'GO:0002274',
+           'GO:0019886')
+ego2@result[ego2@result$ID %in% terms,c('NES','ID','Description','p.adjust')]
+gseaplot2(ego2, geneSetID = terms, pvalue_table = FALSE,rel_heights = c(1.5, 0.5, 0.5),base_size = 15,subplots=1:2,
+          color = c("#4A475C", "#ACD4D6", "#A6BAAF",'#B98A82','#E4DBD2'), ES_geom = "line")
+
+### summarized results via heatmap
+innate <- c('neutrophil migration','neutrophil activation','myeloid leukocyte activation','leukocyte migration','leukocyte cell-cell adhesion',
+'leukocyte aggregation','myeloid leukocyte cytokine production','regulation of leukocyte proliferation','neutrophil chemotaxis','granulocyte activation',
+'granulocyte chemotaxis','granulocyte migration','tumor necrosis factor superfamily cytokine production','tumor necrosis factor production')
+adaptive <- c('antigen processing and presentation of exogenous peptide antigen via MHC class II','antigen processing and presentation of peptide antigen via MHC class II',
+              'B cell mediated immunity','T cell receptor signaling pathway','T cell mediated immunity','regulation of B cell activation',
+              'B cell receptor signaling pathway','B cell activation involved in immune response','regulation of T cell activation',
+              'B cell activation','B cell differentiation')
+all <- c(innate,adaptive)
+filtered_rows <- ego2[ego2$Description %in% all,c('Description','NES')]
+write.csv(filtered_rows, file = "filtered_data.csv", row.names = FALSE)
+
+
+
