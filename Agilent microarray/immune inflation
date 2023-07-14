@@ -6,7 +6,7 @@ eset <- removeBatchEffect(eset, as.factor(targets2$Batch))
 esetwithoutlog <- exp(eset)
 
 ### import the results and visualization
-cell_prop <-read.csv("ImmuCellAI.txt",sep = '') # ImmuCell
+cell_prop <-read.csv("ImmuCC.txt",sep = '') # ImmuCC
 cell_prop <- cell_prop %>%  dplyr::select(-Infiltration_score)
 Group <- rownames(cell_prop)
 for (i in seq_along(Group)) {
@@ -25,7 +25,7 @@ heatmatrix_long <- heatmatrix_long %>%
 heatmatrix_long <- as_tibble(heatmatrix_long)
 heatmatrix_long$value <- as.numeric(heatmatrix_long$value)
 heatmatrix_long
-heatmatrix_long <- heatmatrix_long[heatmatrix_long$Group%in% c('Control','C7plus6',"C12","FAEE50",'FAEE150','TLCS3','TLCS5'),]#已删掉
+heatmatrix_long <- heatmatrix_long[heatmatrix_long$Group%in% c('Control','C7plus6',"C12","FAEE50",'FAEE150','TLCS3','TLCS5'),]
 heatmatrix_long_groupings = 
   heatmatrix_long |>
   mutate(Variable_group = if_else(Group %in% c("C12", 'C7plus6'), "CER",
