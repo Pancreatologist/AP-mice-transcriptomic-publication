@@ -15,6 +15,9 @@ dataGG <- data.frame(PC1 = PCA_raw$x[targets2$Target%in% x,1], PC2 = PCA_raw$x[t
                      Group = as.factor(targets3$Target))
 dataGG <- dataGG %>% mutate(Model= ifelse(grepl('TLCS',dataGG$Group),'TLCS',
                                           ifelse(grepl('FAEE',dataGG$Group),'FAEE','CER')))
+#dataGG <- dataGG %>% mutate(Model= ifelse(grepl('TLCS',dataGG$Group),'TLCS',
+#                                          ifelse(grepl('FAEE',dataGG$Group),'FAEE',
+#                                                 ifelse(grepl('Control',dataGG$Group),'Control','CER'))))
 ggplot(dataGG, aes(PC1, PC2)) +
   geom_point(aes(shape = Batch,color=Group)) +
   ggtitle("PCA plot") +
@@ -22,10 +25,10 @@ ggplot(dataGG, aes(PC1, PC2)) +
   ylab(paste0("PC2, VarExp: ", percentVar[2], "%")) +
   theme(plot.title = element_text(hjust = 0.5))+
   coord_fixed(ratio = sd_ratio) +
-  scale_shape_manual(values = c(1:4)) +
-  scale_color_manual(values = c('#e6194B','#fabed4','#f58231','#ffd8b1','#bfef45','#42d4f4','#4363d8','#469990','#808000'))+
+  scale_shape_manual(values = c(1:5)) +
+  scale_color_manual(values = c('#e6194B','#fabed4','#f58231','#ffd8b1','#bfef45',"#BFBFC1",'#42d4f4','#4363d8','#469990','#808000'))+
   stat_ellipse(aes(fill=Model),type="t",geom="polygon",alpha=0.3)+
-  theme(panel.grid.major = element_blank(),  
-        panel.grid.minor = element_blank(), 
-        panel.background = element_blank(),  
+  theme(panel.grid.major = element_blank(),  # 隐藏主要网格线
+        panel.grid.minor = element_blank(),  # 隐藏次要网格线
+        panel.background = element_blank(),  # 设置空白背景
         axis.line = element_line(color = "black"))
