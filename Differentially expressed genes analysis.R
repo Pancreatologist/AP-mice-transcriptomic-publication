@@ -14,7 +14,7 @@ rownames(design) <- rownames(targets2)
 corfit <- intraspotCorrelation(MA.reomoveCTprobe, design)
 fit <- lmscFit(MA.reomoveCTprobe, design,correlation=corfit$consensus) 
 table(targets2$Target)
-#following code is designed for different DE contrast
+#following code is designed for different DE contrast, you have to change each group for different contrasts
 contrastgroup <- 'C7plus6-Control'
 contrastgroup <- 'SC7plus6-Control'
 contrastgroup <- 'C7-Control'
@@ -27,15 +27,6 @@ contrastgroup <- 'FAEE150-Control'
 contrastgroup <- 'TLCS3-Control'
 contrastgroup <- 'SalinePerf-Control'
 contrastgroup <- 'TLCS5-Control'
-contrastgroup <- 'ppifC7-ppifControl'
-contrastgroup <- 'ppifC7plus6-ppifControl'
-contrastgroup <- 'ppifTLCS-ppifControl'
-contrastgroup <- 'ppifPOAFAEE-ppifControl'
-contrastgroup <- 'ppifControl-Control'
-contrastgroup <- '(ppifC7plus6-C7plus6-ppifControl+Control)/2'
-contrastgroup <- '(ppifC7−C7−ppifControl+Control)/2'
-contrastgroup <- '(ppifPOAFAEE-POAFAEE-ppifControl+Control)/2'
-contrastgroup <- '(ppifTLCS-TLCS-ppifControl+Control)/2'
 contrastgroup <- 'C12-C7plus6'
 contrastgroup <- 'FAEE150-FAEE50'
 contrastgroup <- 'TLCS5-TLCS3'
