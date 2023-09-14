@@ -1,7 +1,4 @@
 #WGCNA
-MA.reomoveCTprobe$genes <- MA.reomoveCTprobe$genes %>% 
-  mutate(ENTREZID = bitr(MA.reomoveCTprobe$genes$GeneName, fromType = 'SYMBOL',OrgDb=org.Mm.eg.db, toType = 'ENTREZID',drop = F)$ENTREZID)
-MA.reomoveCTprobe <- MA.reomoveCTprobe[!is.na(MA.reomoveCTprobe$genes$ENTREZID),]
 eset = exprs.MA(MA.reomoveCTprobe) #get the expression from MA
 colnames(eset) <- rownames(targets2)
 rownames(eset) <- MA.reomoveCTprobe$genes$GeneName 
@@ -11,7 +8,7 @@ sampleinfo <- targets2$Target %>% as.data.frame()%>%
   `colnames<-`(c('group','filenames'))
 rownames(sampleinfo) <- sampleinfo$filenames
 table(sampleinfo$group)
-#3个大组做WCGNA
+#3 model for WCGNA
 sampleinfo <- sampleinfo %>% mutate(threegroups= case_when(sampleinfo$group %in% c("C7plus6", "C12") ~ "CERmodel",
                                             sampleinfo$group %in% c("FAEE150", "FAEE50") ~ "FAEEmodel",
                                             sampleinfo$group %in% c("TLCS3", "TLCS5") ~ "TLCSmodel",
@@ -185,7 +182,7 @@ TOM = TOMsimilarityFromExpr(dataExpr, power=power, corType=corType, networkType=
 TOM <- as.matrix(TOM)
 dissTOM = 1-TOMsimilarityFromExpr(dataExpr, power = power)
 nSelect = 400 
-#设置种子序列，保证结果具有可重复性
+#set the seed
 set.seed(10)
 nGenes = ncol(dataExpr)
 nSamples = nrow(dataExpr)
@@ -209,7 +206,7 @@ if (corType=="pearsoon") {
         modTraitCor = modTraitCorP$bicor
         modTraitP   = modTraitCorP$p
     }
-# signif表示保留几位小数 
+#
 textMatrix = paste(signif(modTraitCor, 2), "\n(", signif(modTraitP, 1), ")", sep = "")  
 dim(textMatrix) = dim(modTraitCor)
 pdf(file="labeledHeatmap.pdf", onefile=F, paper="special", 
