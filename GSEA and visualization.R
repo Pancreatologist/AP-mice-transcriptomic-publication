@@ -13,11 +13,11 @@ ego2 <- gseGO(geneList = genelist,
               by = "fgsea",
               keyType = "ENTREZID") %>% 
   DOSE::setReadable(OrgDb='org.Mm.eg.db',keyType='ENTREZID')
-#ego2 <- simplify(ego2,  cutoff = 0.7,
-#                 by = "p.adjust",
-#                 select_fun = min,
-#                 measure = "Wang",
-#                 semData = NULL)
+ego2 <- simplify(ego2,  cutoff = 0.7,
+                 by = "p.adjust",
+                 select_fun = min,
+                 measure = "Wang",
+                 semData = NULL)
 ego2 <- ego2 %>% as.data.frame()
 ego2$Description
 
@@ -73,7 +73,8 @@ adaptive <- c('antigen processing and presentation of exogenous peptide antigen 
               'B cell activation','B cell differentiation')
 all <- c(innate,adaptive)
 filtered_rows <- ego2[ego2$Description %in% all,c('Description','NES')]
-write.csv(filtered_rows, file = "filtered_data.csv", row.names = FALSE)#make the summarized result
+write.csv(filtered_rows, file = "filtered_data.csv", row.names = FALSE)
+#make the summarized result from the each filtered_data.csv, and put them into the GSEAheatmap.txt
 heatmatrix_long <- read.delim2('GSEAheatmap.txt')#read from the summarized result
 heatmatrix_long <- as_tibble(heatmatrix_long)
 heatmatrix_long$NES <- as.numeric(heatmatrix_long$NES)
@@ -91,8 +92,6 @@ heatmatrix_long_groupings =
   mutate(immune = if_else(Description %in% innate, "innate",'adaptive'))
 heatmatrix_long_groupings$Variable_group <- factor(heatmatrix_long_groupings$Variable_group, levels = c( "M",'S'))
 heatmatrix_long_groupings$Description <- factor(heatmatrix_long_groupings$Description,levels = c(innate,adaptive))
-
-
 heatmatrix_long_groupings$Group <- factor(heatmatrix_long_groupings$Group, levels = c('C7plus6','TLCS3','FAEE150', 'CER','TLCS','FAEE'
 ))
 heatmatrix_long_groupings
