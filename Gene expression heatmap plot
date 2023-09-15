@@ -1,0 +1,78 @@
+#this code is used for the heatmap plot after get the gene expression matrix
+### inflammatory related genes expression for Figure 3D
+chs_x = ego2[ego2@result$Description %in%c('granulocyte migration','neutrophil migration'),'core_enrichment'] %>%strsplit(. ,"/")
+TOPgene <- character()
+for (i in 1:length(chs_x)) {
+  words <- unlist(chs_x[[i]])
+  TOPgene <- c(TOPgene, words)
+}
+TOPgene <- unique(TOPgene)
+control_samples <- targets2[targets2$Batch == '3' & targets2$Target == "Control",]#include the control
+select_samples <- targets2[targets2$Target %in% c("C7plus6",'C12',"TLCS3",'TLCS5','FAEE50',"FAEE150"),]
+sample_targets <- rbind(control_samples,select_samples)
+sample_targets$Target <- factor(sample_targets$Target, levels=c("Control","C7plus6",'C12',"TLCS3",'TLCS5','FAEE50',"FAEE150"))
+sample_targets <- sample_targets[order(sample_targets$Target),]
+degs <- degs_temp[!degs_temp$Condition=='NS','GeneName'] 
+TOPgenerelatedinflam <- intersect(TOPgene,degs)
+heat_matrix = eset[TOPgenerelatedinflam,rownames(sample_targets)]
+legend_col = data.frame( row.names = rownames(sample_targets),
+                         Group = sample_targets$Target) 
+col_fun = colorRamp2(c(-2, 0, 2), c("blue", "#EEEEEE", "red"))
+col_fun(seq(-3, 3))
+pheatmap(heat_matrix,scale = 'row',
+         annotation_col  = legend_col, fontsize=15,
+         col = col_fun,
+         cluster_cols = F,
+         cellwidth = 7,cellheight = 15,treeheight_row = 40,show_colnames = F,border_color = 'BLACK',
+         column_split = factor(sample_targets$Target), 
+         name = 'Row Z-score')
+
+### module related genes in WCGNA for Figure 4E
+WGCNAinfo$group <- factor(WGCNAinfo$group, levels = c("C7plus6","C12","TLCS3","TLCS5","FAEE50","FAEE150"))
+WGCNAinfo <- arrange(WGCNAinfo, group)
+heat_matrix = eset_WGCNA[c(FAEEmodel,CERmodel,'Ppif'),rownames(legend_col)] 
+
+legend_col = data.frame( row.names = rownames(WGCNAinfo),
+                         Group = WGCNAinfo$group) # set up the group information 
+col_fun = colorRamp2(c(-2, 0, 2), c("blue", "#EEEEEE", "red"))
+col_fun(seq(-3, 3))
+pheatmap(heat_matrix,scale = 'row',
+         annotation_col  = legend_col, fontsize=15,
+         col = col_fun,
+         cluster_cols = F,cluster_rows = F,
+         cellwidth = 7,cellheight = 15,treeheight_row = 40,show_colnames = F,border_color = 'BLACK',
+         column_split = factor(WGCNAinfo$threegroups), 
+         name = 'Row Z-score')
+
+### adaptive immune related gene expression heatmap for figure 5C
+chs_x = ego2[ego2@result$Description %in% c('B cell mediated immunity','antigen processing and presentation of exogenous peptide antigen via MHC class II','CD4-positive, alpha-beta T cell activation','T cell migration',"T cell proliferation","T cell differentiation",
+                                   'regulation of T cell activation'),'core_enrichment'] %>%strsplit(. ,"/")
+TOPgene <- character()
+for (i in 1:length(chs_x)) {
+  words <- unlist(chs_x[[i]])
+  TOPgene <- c(TOPgene, words)
+}
+TOPgene <- unique(TOPgene)
+control_samples <- targets2[targets2$Batch == '3' & targets2$Target == "Control",]#选control组做热图
+select_samples <- targets2[targets2$Target %in% c("C7plus6",'C12',"TLCS3",'TLCS5','FAEE50',"FAEE150"),]
+sample_targets <- rbind(control_samples,select_samples)
+sample_targets$Target <- factor(sample_targets$Target, levels=c("Control","C7plus6",'C12',"TLCS3",'TLCS5','FAEE50',"FAEE150"))
+sample_targets <- sample_targets[order(sample_targets$Target),]
+degs <- degs_temp[!degs_temp$Condition=='NS','GeneName']
+adaptive <- intersect(TOPgene,degs)
+heat_matrix = eset[adaptive,rownames(sample_targets)]
+legend_col = data.frame( row.names = rownames(sample_targets),
+                        Group = sample_targets$Target) # 设置分组标签
+col_fun = colorRamp2(c(-2, 0, 2), c("blue", "#EEEEEE", "red"))
+col_fun(seq(-3, 3))
+pheatmap(heat_matrix,scale = 'row',
+         annotation_col  = legend_col, fontsize=15,
+         col = col_fun,
+         cluster_cols = F,
+         cellwidth = 7,cellheight = 15,treeheight_row = 40,show_colnames = F,border_color = 'BLACK',
+         column_split = factor(sample_targets$Target), 
+         name = 'Row Z-score')
+ggsave("heatmap-adaptive.pdf", dpi = 300, limitsize = FALSE,
+       #width = 5, height = 15,
+)
+
