@@ -12,6 +12,7 @@ Step:
 8.	'Gene expression heatmap plot' is used to make the heatmap plot for gene expression (Figure 3D, 4E, 5C).
 9.	‘Immune inflation.R’ is used to make the gene expression matrix without log transformed and to make the Figure 5D.
 10.	'WCGNA.R' is used to do the WCGNA analyse to produce the Figure 4A, 4B and S5.
+
 If you have any comments, please contact me via wudi@liverpool.ac.uk
 
 <!---
