@@ -6,7 +6,8 @@ Step:
 4.	‘Differentially expressed genes analysis.R’ is used to do the DE analyse to make the Figure 3A, Figure Table S1.
 5.	‘Enrichment analyze and visualization (ORA for special genes).R’ is used to do the ORA analyse and make the Figure 3E
 6.	‘GSEA and visualization.R’ is used to make the Figure 3C, Figure 5A and Figure 5B.
-7.	‘Immune inflation.R’ is used to make the gene expression matrix without log transformed and to make the Figure 5D
+7.	'Gene expression heatmap plot' is used to make the heatmap plot for gene expression (Figure 3D, 4E, 5C)
+8.	‘Immune inflation.R’ is used to make the gene expression matrix without log transformed and to make the Figure 5D
 
 
 <!---
