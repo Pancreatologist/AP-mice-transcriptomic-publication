@@ -1,4 +1,4 @@
-It is the code for the publication titled with 'Circulatory transcriptomic profiling identifies innate-adaptive immunity imbalance in 3 different mouse models of acute pancreatitis' written by Di Wu from in the University of Liverpool. 
+It is the code for the publication titled with 'Circulatory transcriptomic profiling identifies innate-adaptive immunity imbalance in 3 different mouse models of acute pancreatitis' written by Di Wu from the University of Liverpool. 
 The rawdata of microarray is reposed in GEO database, with GEO number depending.
 
 Step:
