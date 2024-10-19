@@ -13,7 +13,7 @@ Step:
 9.	‘Immune inflation.R’ is used to make the gene expression matrix without log transformed and to make the Figure 5D.
 10.	'WCGNA.R' is used to do the WCGNA analyse to produce the Figure 4A, 4B and S4.
 
-If you have any comments, please contact me via wudi@liverpool.ac.uk
+If you have any comments, please contact me via wudikdfz@qq.com
 
 <!---
 Pancreatologist/Pancreatologist is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
